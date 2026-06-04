@@ -11,7 +11,7 @@ secretary_slug() {
 secretary_init() {
   local dir
   dir="$(secretary_dir)"
-  run mkdir -p "$dir/inbox" "$dir/tasks" "$dir/briefings" "$dir/worklog" "$dir/decisions" "$dir/reminders" "$dir/integrations" "$dir/agenda/sources" "$dir/agenda/events" "$dir/agenda/feeds" "$dir/routines" "$dir/routine-runs" "$dir/actions"
+  run mkdir -p "$dir/inbox" "$dir/tasks" "$dir/briefings" "$dir/worklog" "$dir/decisions" "$dir/reminders" "$dir/integrations" "$dir/agenda/sources" "$dir/agenda/events" "$dir/agenda/feeds" "$dir/routines" "$dir/routine-runs" "$dir/actions" "$dir/learning" "$dir/learning/reviews"
   if [[ ! -f "$dir/preferences.md" ]]; then
     run cp "$OH_ROOT/templates/secretary/preferences.md" "$dir/preferences.md"
   fi
@@ -172,6 +172,183 @@ secretary_decision() {
   esac
 }
 
+secretary_learn_field() {
+  secretary_task_field "$@"
+}
+
+secretary_learn_find() {
+  local needle="$1" file matches=()
+  [[ -n "$needle" ]] || die "Lesson id/title prefix is required"
+  while IFS= read -r file; do
+    if [[ "$(basename "$file" .md)" == "$needle"* ]] || grep -qi "^# .*${needle}" "$file"; then
+      matches+=("$file")
+    fi
+  done < <(find "$(secretary_dir)/learning" -maxdepth 1 -type f -name '*.md' 2>/dev/null | sort)
+  [[ "${#matches[@]}" -gt 0 ]] || die "No lesson matched: $needle"
+  [[ "${#matches[@]}" -eq 1 ]] || die "Multiple lessons matched: $needle"
+  printf '%s\n' "${matches[0]}"
+}
+
+secretary_learn_add() {
+  secretary_init >/dev/null
+  local title="" body="" source="manual" confidence="medium" status="active" file
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --title) title="${2:-}"; [[ -n "$title" ]] || die "--title needs a value"; shift 2 ;;
+      --body) body="${2:-}"; shift 2 ;;
+      --source) source="${2:-}"; [[ -n "$source" ]] || die "--source needs a value"; shift 2 ;;
+      --confidence) confidence="${2:-}"; [[ -n "$confidence" ]] || die "--confidence needs a value"; shift 2 ;;
+      --status) status="${2:-}"; [[ -n "$status" ]] || die "--status needs a value"; shift 2 ;;
+      *) body="${body}${body:+ }$1"; shift ;;
+    esac
+  done
+  [[ -n "$title" ]] || die "Usage: oh-hermes secretary learn add --title TITLE [--body BODY] [--source SOURCE] [--confidence low|medium|high] [--status candidate|active]"
+  case "$confidence" in low|medium|high) ;; *) die "--confidence must be low, medium, or high" ;; esac
+  case "$status" in candidate|active|archived) ;; *) die "--status must be candidate, active, or archived" ;; esac
+  file="$(secretary_dir)/learning/$(ts)-$(secretary_slug "$title" | cut -c1-48).md"
+  {
+    printf '# %s\n\n' "$title"
+    printf -- '- Created: `%s`\n' "$(date -Is)"
+    printf -- '- Status: `%s`\n' "$status"
+    printf -- '- Confidence: `%s`\n' "$confidence"
+    printf -- '- Source: `%s`\n\n' "$source"
+    printf '## Lesson\n\n%s\n\n' "${body:-No lesson detail captured yet.}"
+    printf '## Review Log\n\n'
+    printf -- '- `%s` `%s` Captured lesson.\n' "$(date -Is)" "$status"
+  } | write_private_report "$file"
+  printf '%s\n' "$file"
+}
+
+secretary_learn_candidate() {
+  local title="$1" source="$2" body="$3" confidence="${4:-medium}"
+  secretary_learn_add --title "$title" --source "$source" --body "$body" --confidence "$confidence" --status candidate
+}
+
+secretary_learn_list() {
+  secretary_init >/dev/null
+  local all=0 wanted="" file title status confidence source
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --all) all=1; shift ;;
+      --status) wanted="${2:-}"; [[ -n "$wanted" ]] || die "--status needs a value"; shift 2 ;;
+      *) die "Unknown learn list option: $1" ;;
+    esac
+  done
+  printf 'ID | Status | Confidence | Source | Title\n'
+  printf -- '---|---|---|---|---\n'
+  while IFS= read -r file; do
+    status="$(secretary_learn_field "$file" "Status")"
+    [[ -z "$wanted" || "${status:-active}" == "$wanted" ]] || continue
+    [[ "$all" == "1" || "${status:-active}" != "archived" ]] || continue
+    title="$(sed -n '1s/^# //p' "$file")"
+    confidence="$(secretary_learn_field "$file" "Confidence")"
+    source="$(secretary_learn_field "$file" "Source")"
+    printf '%s | %s | %s | %s | %s\n' "$(basename "$file" .md)" "${status:-active}" "${confidence:-medium}" "${source:-manual}" "$title"
+  done < <(find "$(secretary_dir)/learning" -maxdepth 1 -type f -name '*.md' 2>/dev/null | sort)
+}
+
+secretary_learn_show() {
+  local file
+  file="$(secretary_learn_find "${1:-}")"
+  sed -n '1,260p' "$file"
+}
+
+secretary_markdown_set_field() {
+  local file="$1" field="$2" value="$3" tmp stamp
+  tmp="$(mktemp)"
+  stamp="$(date -Is)"
+  awk -v field="$field" -v value="$value" -v stamp="$stamp" '
+    index($0, "- " field ":") == 1 && !done {
+      print "- " field ": `" value "`"
+      done = 1
+      next
+    }
+    index($0, "- Updated:") == 1 { next }
+    { print }
+    END {
+      if (!done) {
+        print "- " field ": `" value "`"
+      }
+    }
+  ' "$file" > "$tmp"
+  chmod 600 "$tmp"
+  mv "$tmp" "$file"
+  if grep -q '^- Updated:' "$file"; then
+    return 0
+  fi
+  awk -v stamp="$stamp" '
+    /^- / && !inserted {
+      print
+      next
+    }
+    /^$/ && !inserted {
+      print "- Updated: `" stamp "`"
+      inserted = 1
+    }
+    { print }
+  ' "$file" > "$tmp"
+  chmod 600 "$tmp"
+  mv "$tmp" "$file"
+}
+
+secretary_learn_set_status() {
+  local id="$1" status="$2" note="${3:-}" file stamp
+  [[ -n "$id" ]] || die "Lesson id/title prefix is required"
+  case "$status" in candidate|active|archived) ;; *) die "invalid lesson status: $status" ;; esac
+  file="$(secretary_learn_find "$id")"
+  stamp="$(date -Is)"
+  secretary_markdown_set_field "$file" "Status" "$status"
+  {
+    printf '\n'
+    printf -- '- `%s` `%s` %s\n' "$stamp" "$status" "${note:-No note.}"
+  } >> "$file"
+  printf '%s\n' "$file"
+}
+
+secretary_learn_review() {
+  secretary_init >/dev/null
+  local report
+  report="$(secretary_dir)/learning/reviews/$(ts)-learning-review.md"
+  {
+    printf '# Learning Review\n\n'
+    printf -- '- Generated: `%s`\n\n' "$(date -Is)"
+    printf '## Active Lessons\n\n'
+    secretary_learn_list --status active | tail -n +3 | head -40 | sed 's/^/- /'
+    printf '\n## Candidate Lessons\n\n'
+    secretary_learn_list --status candidate | tail -n +3 | head -60 | sed 's/^/- /'
+    printf '\n## Recent Completed Tasks\n\n'
+    find "$(secretary_dir)/tasks" -type f -name '*.md' -mtime -30 -print 2>/dev/null | sort | tail -30 | while IFS= read -r task; do
+      [[ "$(secretary_task_status "$task")" == "done" ]] || continue
+      printf -- '- `%s` %s\n' "$(basename "$task" .md)" "$(sed -n '1s/^# //p' "$task")"
+    done
+    printf '\n## Recent Closed Actions\n\n'
+    find "$(secretary_dir)/actions" -type f -name '*.md' -mtime -30 -print 2>/dev/null | sort | tail -30 | while IFS= read -r action; do
+      case "$(secretary_action_field "$action" "Status")" in
+        done|rejected) printf -- '- `%s` `%s` %s\n' "$(basename "$action" .md)" "$(secretary_action_field "$action" "Status")" "$(sed -n '1s/^# //p' "$action")" ;;
+      esac
+    done
+    printf '\n## Review Instructions\n\n'
+    printf -- '- Promote durable, reusable candidates with `oh-hermes secretary learn promote <id>`.\n'
+    printf -- '- Archive noisy or one-off candidates with `oh-hermes secretary learn archive <id>`.\n'
+    printf -- '- Keep active lessons short enough to influence future context packs.\n'
+  } | write_private_report "$report"
+  printf '%s\n' "$report"
+}
+
+secretary_learn() {
+  local sub="${1:-list}"
+  shift || true
+  case "$sub" in
+    add) secretary_learn_add "$@" ;;
+    list) secretary_learn_list "$@" ;;
+    show) secretary_learn_show "$@" ;;
+    promote) secretary_learn_set_status "${1:-}" active "${2:-Promoted for reuse.}" ;;
+    archive) secretary_learn_set_status "${1:-}" archived "${2:-Archived.}" ;;
+    review) secretary_learn_review "$@" ;;
+    *) die "Unknown secretary learn command: $sub" ;;
+  esac
+}
+
 secretary_action_field() {
   secretary_task_field "$@"
 }
@@ -253,10 +430,11 @@ secretary_action_show() {
 }
 
 secretary_action_set_status() {
-  local id="$1" status="$2" note="${3:-}" file tmp stamp
+  local id="$1" status="$2" note="${3:-}" file tmp stamp title source
   file="$(secretary_action_find "$id")"
   tmp="$(mktemp)"
   stamp="$(date -Is)"
+  title="$(sed -n '1s/^# //p' "$file")"
   awk -v status="$status" -v stamp="$stamp" '
     index($0, "- Status:") == 1 && !done {
       print "- Status: `" status "`"
@@ -279,6 +457,12 @@ secretary_action_set_status() {
     printf '\n'
     printf -- '- `%s` `%s` %s\n' "$stamp" "$status" "${note:-No note.}"
   } >> "$file"
+  case "$status" in
+    done|rejected)
+      source="action:$(basename "$file" .md)"
+      secretary_learn_candidate "Action outcome: $title" "$source" "Status: $status"$'\n'"Note: ${note:-No note.}" medium >/dev/null || true
+      ;;
+  esac
   printf '%s\n' "$file"
 }
 
@@ -457,8 +641,10 @@ secretary_task_show() {
 }
 
 secretary_task_done() {
-  local file tmp
+  local file tmp note title source
   file="$(secretary_task_find "${1:-}")"
+  note="${2:-Completed task.}"
+  title="$(sed -n '1s/^# //p' "$file")"
   tmp="$(mktemp)"
   if grep -q '^- Status:' "$file"; then
     awk '
@@ -483,6 +669,11 @@ secretary_task_done() {
   fi
   chmod 600 "$tmp"
   mv "$tmp" "$file"
+  {
+    printf '\n## Completion Note\n\n%s\n' "$note"
+  } >> "$file"
+  source="task:$(basename "$file" .md)"
+  secretary_learn_candidate "Task outcome: $title" "$source" "$note" medium >/dev/null || true
   printf '%s\n' "$file"
 }
 
@@ -933,6 +1124,8 @@ secretary_brief() {
     sed -n '1,120p' "$dir/rules.md" 2>/dev/null || true
     printf '\n## Preferences\n\n'
     sed -n '1,160p' "$dir/preferences.md" 2>/dev/null || true
+    printf '\n## Active Lessons\n\n'
+    secretary_learn_list --status active | tail -n +3 | head -20 | sed 's/^/- /'
     printf '\n## Open Tasks\n\n'
     secretary_task_list | tail -n +3 | head -20 | while IFS= read -r task; do
       printf -- '- %s\n' "$task"
@@ -1105,6 +1298,9 @@ secretary_status() {
   printf 'decisions=%s\n' "$(find "$dir/decisions" -type f -name '*.md' 2>/dev/null | wc -l)"
   printf 'actions=%s\n' "$(find "$dir/actions" -type f -name '*.md' 2>/dev/null | wc -l)"
   printf 'open_actions=%s\n' "$(secretary_action_list 2>/dev/null | tail -n +3 | wc -l)"
+  printf 'lessons=%s\n' "$(find "$dir/learning" -maxdepth 1 -type f -name '*.md' 2>/dev/null | wc -l)"
+  printf 'candidate_lessons=%s\n' "$(secretary_learn_list --status candidate 2>/dev/null | tail -n +3 | wc -l)"
+  printf 'learning_reviews=%s\n' "$(find "$dir/learning/reviews" -type f -name '*.md' 2>/dev/null | wc -l)"
   printf 'routines=%s\n' "$(find "$dir/routines" -type f -name '*.md' 2>/dev/null | wc -l)"
   printf 'routine_runs=%s\n' "$(find "$dir/routine-runs" -type f -name '*.md' 2>/dev/null | wc -l)"
   printf 'integrations=%s\n' "$(find "$dir/integrations" -type f -name '*.md' 2>/dev/null | wc -l)"

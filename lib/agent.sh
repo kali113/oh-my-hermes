@@ -38,6 +38,7 @@ agent_status() {
     "$(agent_latest_file '*/reports/auto-improve-*.md')" \
     "$(agent_latest_file '*/reports/self-review-*.md')" \
     "$(agent_latest_file '*/secretary/briefings/*.md')" \
+    "$(agent_latest_file '*/secretary/learning/reviews/*.md')" \
     "$(agent_latest_file '*/secretary/reminders/*.md')"; do
     [[ -n "$latest" ]] && printf -- '- `%s`\n' "$latest"
   done
@@ -66,6 +67,10 @@ agent_context_pack() {
     secretary_decision_list 2>&1 || true
     printf '\n## Worker Actions\n\n'
     secretary_action_list 2>&1 || true
+    printf '\n## Active Lessons\n\n'
+    secretary_learn_list --status active 2>&1 || true
+    printf '\n## Candidate Lessons\n\n'
+    secretary_learn_list --status candidate 2>&1 || true
     printf '\n## Routines\n\n'
     secretary_routine_list 2>&1 || true
     printf '\n## Due Tasks\n\n'

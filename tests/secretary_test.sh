@@ -62,8 +62,16 @@ action_list="$("$ROOT/bin/oh-hermes" secretary action list)"
 grep -vq "Smoke action" <<< "$action_list"
 action_list_all="$("$ROOT/bin/oh-hermes" secretary action list --all)"
 grep -q "done" <<< "$action_list_all"
+learn_candidates="$("$ROOT/bin/oh-hermes" secretary learn list --status candidate)"
+grep -q "Action outcome: Smoke action" <<< "$learn_candidates"
 action_plan="$("$ROOT/bin/oh-hermes" secretary action plan)"
 [[ -f "$action_plan" ]]
+lesson_file="$("$ROOT/bin/oh-hermes" secretary learn add --title "Smoke lesson" --body "Remember smoke-test preference" --source smoke --confidence high)"
+[[ -f "$lesson_file" ]]
+learn_list="$("$ROOT/bin/oh-hermes" secretary learn list)"
+grep -q "Smoke lesson" <<< "$learn_list"
+learn_show="$("$ROOT/bin/oh-hermes" secretary learn show "$(basename "$lesson_file" .md)")"
+grep -q "Remember smoke-test preference" <<< "$learn_show"
 routine_file="$("$ROOT/bin/oh-hermes" secretary routine add --name "Smoke routine" --schedule daily --body "- [ ] Check smoke task")"
 [[ -f "$routine_file" ]]
 routine_list="$("$ROOT/bin/oh-hermes" secretary routine list)"
@@ -102,14 +110,26 @@ grep -q "Email" <<< "$integration_status"
 "$ROOT/bin/oh-hermes" secretary integrations plan >/dev/null
 
 task_id="$(basename "$task_file" .md)"
-"$ROOT/bin/oh-hermes" secretary task done "$task_id" >/dev/null
+"$ROOT/bin/oh-hermes" secretary task done "$task_id" "Finished task in smoke test" >/dev/null
 task_list_after="$("$ROOT/bin/oh-hermes" secretary task list)"
 grep -vq "Test due task" <<< "$task_list_after"
 task_list_all="$("$ROOT/bin/oh-hermes" secretary task list --all)"
 grep -q "done" <<< "$task_list_all"
-"$ROOT/bin/oh-hermes" secretary brief >/dev/null
+learn_candidates="$("$ROOT/bin/oh-hermes" secretary learn list --status candidate)"
+grep -q "Task outcome: Test due task" <<< "$learn_candidates"
+candidate_id="$(awk -F' \\| ' '/Action outcome: Smoke action/ {print $1; exit}' <<< "$learn_candidates")"
+"$ROOT/bin/oh-hermes" secretary learn promote "$candidate_id" "Promote action learning in smoke test" >/dev/null
+active_lessons="$("$ROOT/bin/oh-hermes" secretary learn list --status active)"
+grep -q "Action outcome: Smoke action" <<< "$active_lessons"
+"$ROOT/bin/oh-hermes" secretary learn archive "$(basename "$lesson_file" .md)" "Archive manual smoke lesson" >/dev/null
+learn_review="$("$ROOT/bin/oh-hermes" secretary learn review)"
+[[ -f "$learn_review" ]]
+grep -q "Learning Review" "$learn_review"
+brief_file="$("$ROOT/bin/oh-hermes" secretary brief)"
+grep -q "Active Lessons" "$brief_file"
 agent_status="$("$ROOT/bin/oh-hermes" agent status)"
 grep -q "oh-hermes Agent Status" <<< "$agent_status"
 "$ROOT/bin/oh-hermes" agent report >/dev/null
-"$ROOT/bin/oh-hermes" agent context-pack >/dev/null
+context_pack="$("$ROOT/bin/oh-hermes" agent context-pack)"
+grep -q "Active Lessons" "$context_pack"
 grep -q "publish-check" "$ROOT/bin/oh-hermes"

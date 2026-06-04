@@ -3,7 +3,7 @@
 `oh-hermes` now has two loops:
 
 1. God mode keeps the Hermes setup healthy and improves the setup itself.
-2. Secretary mode keeps a private operating layer for tasks, worker actions, briefings, decisions, and work logs.
+2. Secretary mode keeps a private operating layer for tasks, worker actions, reusable lessons, briefings, decisions, and work logs.
 
 ## What Improves With Use
 
@@ -11,6 +11,7 @@
 - Skills improve when repeated workflows are turned into skill text and pass guarded evolution.
 - Briefings improve as the local inbox, task list, decisions, and work logs become richer.
 - Worker quality improves when proposed actions are approved, rejected, or completed with useful notes.
+- Future context improves when noisy candidate lessons are archived and durable lessons are promoted.
 
 It does not improve just because time passes. It improves when real workflows create durable, useful state.
 
@@ -29,6 +30,12 @@ oh-hermes secretary action approve <action-id-prefix>
 oh-hermes secretary action reject <action-id-prefix>
 oh-hermes secretary action done <action-id-prefix>
 oh-hermes secretary action plan
+oh-hermes secretary learn add --title "Prefer local-first workflows" --body "Keep private state outside the repo."
+oh-hermes secretary learn list
+oh-hermes secretary learn show <lesson-id-prefix>
+oh-hermes secretary learn promote <lesson-id-prefix>
+oh-hermes secretary learn archive <lesson-id-prefix>
+oh-hermes secretary learn review
 oh-hermes secretary routine add --name "Morning review" --schedule daily
 oh-hermes secretary routine run daily
 oh-hermes secretary task add --title "Follow up on X" --due 2026-06-05 --priority high
@@ -57,7 +64,7 @@ oh-hermes agent context-pack
 oh-hermes publish-check
 ```
 
-`secretary --install-timer` installs the daily briefing and worker action plan timer, half-hourly reminder check, hourly read-only agenda feed sync, and daily routine runner.
+`secretary --install-timer` installs the daily briefing, worker action plan, and learning review timer, half-hourly reminder check, hourly read-only agenda feed sync, and daily routine runner.
 `secretary init` seeds a default daily review routine if none exists.
 
 ## Integration Boundary
@@ -86,3 +93,13 @@ Worker actions are the approval boundary for autonomous work. They live under `~
 - `done`: completed work with a status-log note.
 
 Use `--requires-approval 1` for messages, account changes, external writes, purchases, destructive operations, and any task where leaking or changing private data would matter.
+
+## Learning Loop
+
+Reusable lessons live under `~/.oh-hermes/secretary/learning`. Completing a task or closing a worker action automatically creates a candidate lesson. Daily learning reviews collect active lessons, candidate lessons, recent completed tasks, and closed actions.
+
+- `candidate`: useful-looking but not trusted enough for future context.
+- `active`: promoted lesson that appears in daily briefings and context packs.
+- `archived`: noisy, stale, or one-off lesson.
+
+This is how usage makes the setup better over time: outcomes become reviewable learning candidates, and only promoted lessons become durable guidance.
