@@ -7,6 +7,8 @@ After=network-online.target
 Type=oneshot
 Environment=HERMES_EVOLUTION_MAX_TOKENS=2048
 Environment=OH_HERMES_EVOLVE_TIMEOUT=300
+Environment=OH_HERMES_SELF_REVIEW_TIMEOUT=90
+Environment=OH_HERMES_HEALTH_TIMEOUT=20
 Environment=OH_HERMES_GOD_EVOLVE_ITERATIONS=1
 Environment=OH_HERMES_GOD_COMMIT=1
 ExecStart=%h/.local/bin/oh-hermes god-mode --once

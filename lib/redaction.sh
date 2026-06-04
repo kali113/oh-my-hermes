@@ -22,7 +22,7 @@ redact_check() {
   )
 
   for pat in "${patterns[@]}"; do
-    if rg -n --hidden --glob '!.git/' --glob '!vendor/' --glob '!backups/' --glob '!runtime/' --glob '!node_modules/' --glob '!lib/redaction.sh' -i "$pat" "$target"; then
+    if rg -n --hidden --glob '!.git/' --glob '!vendor/' --glob '!backups/' --glob '!runtime/' --glob '!node_modules/' --glob '!**/lib/redaction.sh' -i "$pat" "$target"; then
       status=1
     fi
   done

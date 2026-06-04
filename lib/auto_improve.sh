@@ -76,7 +76,7 @@ Do not include secrets, raw env values, raw tokens, private Discord IDs, or priv
 EOF
 )"
   info "Asking Hermes to self-review this setup; writing $report"
-  output="$(timeout "${OH_HERMES_SELF_REVIEW_TIMEOUT:-300}" hermes -z "$prompt" 2>&1 || true)"
+  output="$(timeout --kill-after=10 "${OH_HERMES_SELF_REVIEW_TIMEOUT:-300}" hermes -z "$prompt" 2>&1 || true)"
   if [[ -z "${output//[[:space:]]/}" ]]; then
     output="Hermes self-review returned no text before the timeout. Run again with a larger OH_HERMES_SELF_REVIEW_TIMEOUT or inspect Hermes logs."
   fi
@@ -130,7 +130,7 @@ evolve_skill() {
       set +a
     fi
     cd "$evo_dir"
-    timeout "${OH_HERMES_EVOLVE_TIMEOUT:-900}" "$py" -m evolution.skills.evolve_skill \
+    timeout --kill-after=10 "${OH_HERMES_EVOLVE_TIMEOUT:-900}" "$py" -m evolution.skills.evolve_skill \
       --skill "$skill" \
       --iterations "$iterations" \
       --eval-source synthetic \
@@ -270,7 +270,10 @@ god_mode_evolve_skills() {
 god_mode_commit() {
   [[ "${OH_HERMES_GOD_COMMIT:-1}" == "1" ]] || { printf 'auto-commit disabled\n'; return 0; }
   [[ -d "$OH_ROOT/.git" ]] || { printf 'not a git repo\n'; return 0; }
-  redact_check "$OH_ROOT" >/dev/null
+  if ! (redact_check "$OH_ROOT") >/dev/null; then
+    printf 'redaction check blocked commit\n'
+    return 0
+  fi
   git -C "$OH_ROOT" add .
   if git -C "$OH_ROOT" diff --cached --quiet; then
     printf 'nothing to commit\n'
