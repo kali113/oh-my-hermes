@@ -19,6 +19,8 @@ source "$OH_ROOT/lib/redaction.sh"
 source "$OH_ROOT/lib/modules.sh"
 # shellcheck source=../lib/auto_improve.sh
 source "$OH_ROOT/lib/auto_improve.sh"
+# shellcheck source=../lib/secretary.sh
+source "$OH_ROOT/lib/secretary.sh"
 
 usage() {
   cat <<'EOF'
@@ -37,6 +39,7 @@ Usage:
   oh-hermes self-review
   oh-hermes evolve-skill <skill-name> [--dry-run|--run] [--iterations N]
   oh-hermes god-mode [--once|--install-timer|--remove-timer|--status]
+  oh-hermes secretary init|brief|capture|worklog|status|--install-timer|--remove-timer
   oh-hermes redact-check [path]
   oh-hermes test
 EOF
@@ -144,6 +147,21 @@ cmd_auto_improve() {
   auto_improve "$dry"
 }
 
+cmd_secretary() {
+  local sub="${1:-status}"
+  shift || true
+  case "$sub" in
+    init) secretary_init "$@" ;;
+    brief) secretary_brief "$@" ;;
+    capture) secretary_capture "$@" ;;
+    worklog) secretary_worklog "$@" ;;
+    status|"") secretary_status "$@" ;;
+    --install-timer) install_secretary_timer ;;
+    --remove-timer) remove_secretary_timer ;;
+    *) die "Unknown secretary command: $sub" ;;
+  esac
+}
+
 cmd_test() {
   local failed=0
   info "Checking shell syntax"
@@ -176,6 +194,7 @@ main() {
     self-review) self_review "$@" ;;
     evolve-skill) evolve_skill "$@" ;;
     god-mode) god_mode "$@" ;;
+    secretary) cmd_secretary "$@" ;;
     redact-check) redact_check "${1:-$OH_ROOT}" ;;
     test) cmd_test ;;
     -h|--help|help|"") usage ;;

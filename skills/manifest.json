@@ -28,6 +28,16 @@
       "name": "oh-auto-improve",
       "path": "oh-auto-improve/SKILL.md",
       "description": "Guarded self-improvement loop for skills, docs, and setup scripts."
+    },
+    {
+      "name": "oh-secretary",
+      "path": "oh-secretary/SKILL.md",
+      "description": "Personal secretary workflow for briefings, reminders, task capture, decisions, and private coordination."
+    },
+    {
+      "name": "oh-worker",
+      "path": "oh-worker/SKILL.md",
+      "description": "Personal worker workflow for executing scoped jobs, logging progress, and producing verified deliverables."
     }
   ]
 }

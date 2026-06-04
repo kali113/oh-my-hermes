@@ -11,5 +11,7 @@ Use these local skills when a Hermes setup task matches the trigger.
 | `oh-code` | edit scripts, test setup, publish repo, Arch automation | Make scoped code/config changes with smoke tests and redaction checks. |
 | `oh-swarm` | workspace, dashboard, multi-agent, service orchestration | Coordinate Workspace, dashboard, API server, and local services. |
 | `oh-auto-improve` | self-improve, evolve, optimize, weekly report, GEPA | Run guarded measurement, review, and proposal workflows. |
+| `oh-secretary` | secretary, briefing, reminder, schedule, task capture | Maintain private tasks, briefings, decisions, and follow-ups. |
+| `oh-worker` | personal worker, execute task, work session, deliverable | Carry scoped jobs through execution, verification, and logging. |
 
 Always run `oh-hermes redact-check` before publishing artifacts from this setup.
