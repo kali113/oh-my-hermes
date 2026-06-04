@@ -35,6 +35,7 @@ cd /home/arch/oh-hermes
 oh-hermes doctor
 oh-hermes agent status
 oh-hermes agent report
+oh-hermes publish-check
 oh-hermes auto-improve
 oh-hermes self-review
 oh-hermes evolve-skill oh-auto-improve --dry-run
@@ -42,6 +43,7 @@ oh-hermes god-mode --once
 oh-hermes god-mode --install-timer
 oh-hermes secretary task add --title "Follow up" --due 2026-06-05
 oh-hermes secretary task list
+oh-hermes secretary notify enable-local
 oh-hermes secretary reminders
 oh-hermes secretary integrations status
 oh-hermes secretary brief
@@ -55,6 +57,7 @@ oh-hermes ui --background
 `god-mode` runs the unattended cycle: backups, service repair, durable service setup, diagnostics, self-review, skill evolution, safe auto-apply, redaction checks, and local commits.
 `agent status` is the quick command-center view for health, timers, services, tasks, git state, and latest reports.
 `secretary` manages your private personal-agent layer under `~/.oh-hermes/secretary`: inbox, tasks, decisions, work logs, and daily briefings.
+`publish-check` is the release gate before pushing a redacted public repo.
 See `docs/SELF_IMPROVEMENT.md` for the latest guarded evolution result.
 See `docs/PERSONAL_AGENT.md` for the secretary/worker operating model.
 

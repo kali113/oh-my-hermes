@@ -20,6 +20,9 @@ oh-hermes secretary init
 oh-hermes secretary task add --title "Follow up on X" --due 2026-06-05 --priority high
 oh-hermes secretary task list
 oh-hermes secretary task done <task-id-prefix>
+oh-hermes secretary notify status
+oh-hermes secretary notify enable-local
+oh-hermes secretary notify test --send
 oh-hermes secretary reminders
 oh-hermes secretary integrations init
 oh-hermes secretary integrations status
@@ -31,6 +34,7 @@ oh-hermes secretary --install-timer
 oh-hermes secretary status
 oh-hermes agent status
 oh-hermes agent report
+oh-hermes publish-check
 ```
 
 `secretary --install-timer` installs both the daily briefing timer and the half-hourly reminder check.

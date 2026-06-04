@@ -21,6 +21,24 @@ secretary_init() {
   info "Secretary state is at $dir"
 }
 
+secretary_notification_env() {
+  printf '%s/integrations/notifications.env\n' "$(secretary_dir)"
+}
+
+secretary_notifications_init() {
+  secretary_integrations_init >/dev/null
+  local env_file
+  env_file="$(secretary_notification_env)"
+  if [[ ! -f "$env_file" ]]; then
+    {
+      printf 'OH_HERMES_NOTIFY=0\n'
+      printf 'OH_HERMES_NOTIFY_BACKEND=notify-send\n'
+      printf 'OH_HERMES_NOTIFY_URGENCY=normal\n'
+    } > "$env_file"
+    chmod 600 "$env_file"
+  fi
+}
+
 secretary_capture() {
   local kind="inbox" title="" body="" dir file
   while [[ $# -gt 0 ]]; do
@@ -188,6 +206,12 @@ secretary_reminders() {
   secretary_init >/dev/null
   local dir report now_stamp today file status due remind title pending=0
   dir="$(secretary_dir)"
+  if [[ -f "$(secretary_notification_env)" ]]; then
+    set -a
+    # shellcheck source=/dev/null
+    source "$(secretary_notification_env)"
+    set +a
+  fi
   report="$dir/reminders/$(date +%F).md"
   now_stamp="$(date +%Y-%m-%dT%H:%M)"
   today="$(date +%F)"
@@ -211,7 +235,7 @@ secretary_reminders() {
     [[ "$pending" -gt 0 ]] || printf 'No due reminders.\n'
   } | write_private_report "$report"
   if [[ "$pending" -gt 0 && "${OH_HERMES_NOTIFY:-0}" == "1" ]] && have notify-send; then
-    notify-send "oh-hermes reminders" "$pending task(s) need attention" || true
+    notify-send --urgency="${OH_HERMES_NOTIFY_URGENCY:-normal}" "oh-hermes reminders" "$pending task(s) need attention" || true
   fi
   printf '%s\n' "$report"
 }
@@ -313,6 +337,54 @@ secretary_integrations() {
     status) secretary_integrations_status "$@" ;;
     plan) secretary_integrations_plan "$@" ;;
     *) die "Unknown secretary integrations command: $sub" ;;
+  esac
+}
+
+secretary_notify() {
+  local sub="${1:-status}" env_file enabled backend urgency
+  shift || true
+  secretary_notifications_init
+  env_file="$(secretary_notification_env)"
+  case "$sub" in
+    status)
+      enabled="$(awk -F= '/^OH_HERMES_NOTIFY=/ {print $2; exit}' "$env_file")"
+      backend="$(awk -F= '/^OH_HERMES_NOTIFY_BACKEND=/ {print $2; exit}' "$env_file")"
+      urgency="$(awk -F= '/^OH_HERMES_NOTIFY_URGENCY=/ {print $2; exit}' "$env_file")"
+      printf 'enabled=%s\n' "${enabled:-0}"
+      printf 'backend=%s\n' "${backend:-notify-send}"
+      printf 'urgency=%s\n' "${urgency:-normal}"
+      printf 'notify_send=%s\n' "$(have notify-send && printf available || printf missing)"
+      printf 'env_file=%s\n' "$env_file"
+      ;;
+    enable-local)
+      {
+        printf 'OH_HERMES_NOTIFY=1\n'
+        printf 'OH_HERMES_NOTIFY_BACKEND=notify-send\n'
+        printf 'OH_HERMES_NOTIFY_URGENCY=%s\n' "${1:-normal}"
+      } > "$env_file"
+      chmod 600 "$env_file"
+      printf '%s\n' "$env_file"
+      ;;
+    disable)
+      {
+        printf 'OH_HERMES_NOTIFY=0\n'
+        printf 'OH_HERMES_NOTIFY_BACKEND=notify-send\n'
+        printf 'OH_HERMES_NOTIFY_URGENCY=normal\n'
+      } > "$env_file"
+      chmod 600 "$env_file"
+      printf '%s\n' "$env_file"
+      ;;
+    test)
+      if ! have notify-send; then
+        printf 'notify-send missing\n'
+        return 0
+      fi
+      if [[ "${1:-}" == "--send" ]]; then
+        notify-send --urgency=normal "oh-hermes" "Notification integration test" || true
+      fi
+      printf 'notify-send available\n'
+      ;;
+    *) die "Unknown secretary notify command: $sub" ;;
   esac
 }
 

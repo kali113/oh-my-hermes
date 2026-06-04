@@ -16,6 +16,12 @@ grep -q "Test due task" <<< "$task_list"
 task_due="$("$ROOT/bin/oh-hermes" secretary task due)"
 grep -q "Test due task" <<< "$task_due"
 "$ROOT/bin/oh-hermes" secretary reminders >/dev/null
+notify_status="$("$ROOT/bin/oh-hermes" secretary notify status)"
+grep -q "enabled=" <<< "$notify_status"
+"$ROOT/bin/oh-hermes" secretary notify enable-local >/dev/null
+notify_status="$("$ROOT/bin/oh-hermes" secretary notify status)"
+grep -q "enabled=1" <<< "$notify_status"
+"$ROOT/bin/oh-hermes" secretary notify disable >/dev/null
 "$ROOT/bin/oh-hermes" secretary integrations init >/dev/null
 integration_status="$("$ROOT/bin/oh-hermes" secretary integrations status)"
 grep -q "Email" <<< "$integration_status"
@@ -31,3 +37,4 @@ grep -q "done" <<< "$task_list_all"
 agent_status="$("$ROOT/bin/oh-hermes" agent status)"
 grep -q "oh-hermes Agent Status" <<< "$agent_status"
 "$ROOT/bin/oh-hermes" agent report >/dev/null
+grep -q "publish-check" "$ROOT/bin/oh-hermes"

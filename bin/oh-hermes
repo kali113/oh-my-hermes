@@ -23,6 +23,8 @@ source "$OH_ROOT/lib/auto_improve.sh"
 source "$OH_ROOT/lib/secretary.sh"
 # shellcheck source=../lib/agent.sh
 source "$OH_ROOT/lib/agent.sh"
+# shellcheck source=../lib/publish.sh
+source "$OH_ROOT/lib/publish.sh"
 
 usage() {
   cat <<'EOF'
@@ -42,7 +44,8 @@ Usage:
   oh-hermes evolve-skill <skill-name> [--dry-run|--run] [--iterations N]
   oh-hermes god-mode [--once|--install-timer|--remove-timer|--status]
   oh-hermes agent status|report
-  oh-hermes secretary init|brief|capture|task|reminders|integrations|worklog|status|--install-timer|--remove-timer
+  oh-hermes secretary init|brief|capture|task|reminders|notify|integrations|worklog|status|--install-timer|--remove-timer
+  oh-hermes publish-check
   oh-hermes redact-check [path]
   oh-hermes test
 EOF
@@ -159,6 +162,7 @@ cmd_secretary() {
     capture) secretary_capture "$@" ;;
     task) secretary_task "$@" ;;
     reminders) secretary_reminders "$@" ;;
+    notify) secretary_notify "$@" ;;
     integrations) secretary_integrations "$@" ;;
     worklog) secretary_worklog "$@" ;;
     status|"") secretary_status "$@" ;;
@@ -206,6 +210,7 @@ main() {
     god-mode) god_mode "$@" ;;
     agent) agent_cmd "$@" ;;
     secretary) cmd_secretary "$@" ;;
+    publish-check) publish_check "$@" ;;
     redact-check) redact_check "${1:-$OH_ROOT}" ;;
     test) cmd_test ;;
     -h|--help|help|"") usage ;;
