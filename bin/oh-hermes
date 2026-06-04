@@ -2,7 +2,11 @@
 
 set -euo pipefail
 
-OH_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+script_path="${BASH_SOURCE[0]}"
+if command -v readlink >/dev/null 2>&1; then
+  script_path="$(readlink -f "$script_path")"
+fi
+OH_ROOT="$(cd "$(dirname "$script_path")/.." && pwd)"
 export OH_ROOT
 
 # shellcheck source=../lib/common.sh
