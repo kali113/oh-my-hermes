@@ -57,7 +57,7 @@ oh-hermes agent context-pack
 oh-hermes publish-check
 ```
 
-`secretary --install-timer` installs the daily briefing timer, half-hourly reminder check, hourly read-only agenda feed sync, and daily routine runner.
+`secretary --install-timer` installs the daily briefing and worker action plan timer, half-hourly reminder check, hourly read-only agenda feed sync, and daily routine runner.
 `secretary init` seeds a default daily review routine if none exists.
 
 ## Integration Boundary

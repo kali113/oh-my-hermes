@@ -72,7 +72,7 @@ oh-hermes ui --background
 `god-mode` runs the unattended cycle: backups, service repair, durable service setup, diagnostics, self-review, skill evolution, safe auto-apply, redaction checks, and local commits.
 `agent status` is the quick command-center view for health, timers, services, tasks, git state, and latest reports.
 `agent context-pack` writes a redacted private summary for future sessions under `~/.oh-hermes/reports`.
-`secretary` manages your private personal-agent layer under `~/.oh-hermes/secretary`: inbox, tasks, worker actions, decisions, work logs, and daily briefings.
+`secretary` manages your private personal-agent layer under `~/.oh-hermes/secretary`: inbox, tasks, worker actions, decisions, work logs, daily briefings, and daily worker action plans.
 `publish-check` is the release gate before pushing a redacted public repo.
 See `docs/SELF_IMPROVEMENT.md` for the latest guarded evolution result.
 See `docs/PERSONAL_AGENT.md` for the secretary/worker operating model.
