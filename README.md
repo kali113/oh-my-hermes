@@ -26,6 +26,7 @@ cd /home/arch/oh-hermes
 - Optional MemOS and Hermes self-evolution lab modules.
 - Durable `systemd --user` MemOS viewer service for local memory inspection.
 - Personal secretary/worker layer for private tasks, briefings, decisions, and work logs.
+- Worker action queue for proposed, approved, rejected, and completed personal-agent work.
 - Default daily review routine with a scheduled routine runner.
 - Weekly `systemd --user` auto-improvement reports.
 - Redaction checks before publishing.
@@ -46,6 +47,10 @@ oh-hermes god-mode --install-timer
 oh-hermes secretary task add --title "Follow up" --due 2026-06-05
 oh-hermes secretary inbox import ~/note.md
 oh-hermes secretary inbox triage --id note --to task --due 2026-06-05
+oh-hermes secretary action add --title "Draft follow-up" --risk medium --requires-approval 1
+oh-hermes secretary action approve <action-id-prefix>
+oh-hermes secretary action done <action-id-prefix>
+oh-hermes secretary action plan
 oh-hermes secretary routine add --name "Morning review" --schedule daily
 oh-hermes secretary routine run daily
 oh-hermes secretary task list
@@ -67,7 +72,7 @@ oh-hermes ui --background
 `god-mode` runs the unattended cycle: backups, service repair, durable service setup, diagnostics, self-review, skill evolution, safe auto-apply, redaction checks, and local commits.
 `agent status` is the quick command-center view for health, timers, services, tasks, git state, and latest reports.
 `agent context-pack` writes a redacted private summary for future sessions under `~/.oh-hermes/reports`.
-`secretary` manages your private personal-agent layer under `~/.oh-hermes/secretary`: inbox, tasks, decisions, work logs, and daily briefings.
+`secretary` manages your private personal-agent layer under `~/.oh-hermes/secretary`: inbox, tasks, worker actions, decisions, work logs, and daily briefings.
 `publish-check` is the release gate before pushing a redacted public repo.
 See `docs/SELF_IMPROVEMENT.md` for the latest guarded evolution result.
 See `docs/PERSONAL_AGENT.md` for the secretary/worker operating model.

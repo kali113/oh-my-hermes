@@ -37,12 +37,33 @@ inbox_list="$("$ROOT/bin/oh-hermes" secretary inbox list)"
 grep -q "Inbox smoke" <<< "$inbox_list"
 triaged_task="$("$ROOT/bin/oh-hermes" secretary inbox triage --id "$(basename "$inbox_item" .md)" --to task --due 2000-01-02)"
 [[ -f "$triaged_task" ]]
+inbox_action_item="$("$ROOT/bin/oh-hermes" secretary inbox import "$inbox_file" --title "Inbox action smoke")"
+triaged_action="$("$ROOT/bin/oh-hermes" secretary inbox triage --id "$(basename "$inbox_action_item" .md)" --to action --project smoke)"
+[[ -f "$triaged_action" ]]
+grep -q "Inbox action smoke" "$triaged_action"
 decision_file="$("$ROOT/bin/oh-hermes" secretary decision add --title "Smoke decision" --body "Use private decision log")"
 [[ -f "$decision_file" ]]
 decision_list="$("$ROOT/bin/oh-hermes" secretary decision list)"
 grep -q "Smoke decision" <<< "$decision_list"
 decision_show="$("$ROOT/bin/oh-hermes" secretary decision show "$(basename "$decision_file" .md)")"
 grep -q "Use private decision log" <<< "$decision_show"
+action_file="$("$ROOT/bin/oh-hermes" secretary action add --title "Smoke action" --type code --risk medium --project smoke --requires-approval 1 --body "Propose worker action")"
+[[ -f "$action_file" ]]
+action_list="$("$ROOT/bin/oh-hermes" secretary action list)"
+grep -q "Smoke action" <<< "$action_list"
+grep -q "proposed" <<< "$action_list"
+action_show="$("$ROOT/bin/oh-hermes" secretary action show "$(basename "$action_file" .md)")"
+grep -q "Propose worker action" <<< "$action_show"
+"$ROOT/bin/oh-hermes" secretary action approve "$(basename "$action_file" .md)" "Approved in smoke test" >/dev/null
+action_list="$("$ROOT/bin/oh-hermes" secretary action list)"
+grep -q "approved" <<< "$action_list"
+"$ROOT/bin/oh-hermes" secretary action done "$(basename "$action_file" .md)" "Completed in smoke test" >/dev/null
+action_list="$("$ROOT/bin/oh-hermes" secretary action list)"
+grep -vq "Smoke action" <<< "$action_list"
+action_list_all="$("$ROOT/bin/oh-hermes" secretary action list --all)"
+grep -q "done" <<< "$action_list_all"
+action_plan="$("$ROOT/bin/oh-hermes" secretary action plan)"
+[[ -f "$action_plan" ]]
 routine_file="$("$ROOT/bin/oh-hermes" secretary routine add --name "Smoke routine" --schedule daily --body "- [ ] Check smoke task")"
 [[ -f "$routine_file" ]]
 routine_list="$("$ROOT/bin/oh-hermes" secretary routine list)"

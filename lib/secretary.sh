@@ -11,7 +11,7 @@ secretary_slug() {
 secretary_init() {
   local dir
   dir="$(secretary_dir)"
-  run mkdir -p "$dir/inbox" "$dir/tasks" "$dir/briefings" "$dir/worklog" "$dir/decisions" "$dir/reminders" "$dir/integrations" "$dir/agenda/sources" "$dir/agenda/events" "$dir/agenda/feeds" "$dir/routines" "$dir/routine-runs"
+  run mkdir -p "$dir/inbox" "$dir/tasks" "$dir/briefings" "$dir/worklog" "$dir/decisions" "$dir/reminders" "$dir/integrations" "$dir/agenda/sources" "$dir/agenda/events" "$dir/agenda/feeds" "$dir/routines" "$dir/routine-runs" "$dir/actions"
   if [[ ! -f "$dir/preferences.md" ]]; then
     run cp "$OH_ROOT/templates/secretary/preferences.md" "$dir/preferences.md"
   fi
@@ -172,6 +172,152 @@ secretary_decision() {
   esac
 }
 
+secretary_action_field() {
+  secretary_task_field "$@"
+}
+
+secretary_action_find() {
+  local needle="$1" dir file matches=()
+  dir="$(secretary_dir)/actions"
+  [[ -n "$needle" ]] || die "Action id/title prefix is required"
+  while IFS= read -r file; do
+    if [[ "$(basename "$file" .md)" == "$needle"* ]] || grep -qi "^# .*${needle}" "$file"; then
+      matches+=("$file")
+    fi
+  done < <(find "$dir" -type f -name '*.md' 2>/dev/null | sort)
+  [[ "${#matches[@]}" -gt 0 ]] || die "No action matched: $needle"
+  [[ "${#matches[@]}" -eq 1 ]] || die "Multiple actions matched: $needle"
+  printf '%s\n' "${matches[0]}"
+}
+
+secretary_action_add() {
+  secretary_init >/dev/null
+  local title="" body="" type="local" risk="medium" project="general" approval="1" file
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --title) title="${2:-}"; [[ -n "$title" ]] || die "--title needs a value"; shift 2 ;;
+      --body) body="${2:-}"; shift 2 ;;
+      --type) type="${2:-}"; [[ -n "$type" ]] || die "--type needs a value"; shift 2 ;;
+      --risk) risk="${2:-}"; [[ -n "$risk" ]] || die "--risk needs a value"; shift 2 ;;
+      --project) project="${2:-}"; [[ -n "$project" ]] || die "--project needs a value"; shift 2 ;;
+      --requires-approval) approval="${2:-}"; [[ -n "$approval" ]] || die "--requires-approval needs a value"; shift 2 ;;
+      *) body="${body}${body:+ }$1"; shift ;;
+    esac
+  done
+  [[ -n "$title" ]] || die "Usage: oh-hermes secretary action add --title TITLE [--type local|external|message|research|code] [--risk low|medium|high] [--requires-approval 0|1]"
+  case "$risk" in low|medium|high) ;; *) die "--risk must be low, medium, or high" ;; esac
+  case "$approval" in 0|1) ;; *) die "--requires-approval must be 0 or 1" ;; esac
+  file="$(secretary_dir)/actions/$(ts)-$(secretary_slug "$title" | cut -c1-48).md"
+  {
+    printf '# %s\n\n' "$title"
+    printf -- '- Created: `%s`\n' "$(date -Is)"
+    printf -- '- Status: `proposed`\n'
+    printf -- '- Type: `%s`\n' "$type"
+    printf -- '- Risk: `%s`\n' "$risk"
+    printf -- '- Project: `%s`\n' "$project"
+    printf -- '- Requires Approval: `%s`\n\n' "$approval"
+    printf '## Proposed Work\n\n%s\n\n' "${body:-No details captured yet.}"
+    printf '## Status Log\n\n'
+    printf -- '- `%s` `proposed` Created action proposal.\n' "$(date -Is)"
+  } | write_private_report "$file"
+  printf '%s\n' "$file"
+}
+
+secretary_action_list() {
+  secretary_init >/dev/null
+  local all=0 file title status type risk project approval
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --all) all=1; shift ;;
+      *) die "Unknown action list option: $1" ;;
+    esac
+  done
+  printf 'ID | Status | Risk | Approval | Type | Project | Title\n'
+  printf -- '---|---|---|---|---|---|---\n'
+  while IFS= read -r file; do
+    status="$(secretary_action_field "$file" "Status")"
+    [[ "$all" == "1" || ( "$status" != "done" && "$status" != "rejected" ) ]] || continue
+    title="$(sed -n '1s/^# //p' "$file")"
+    type="$(secretary_action_field "$file" "Type")"
+    risk="$(secretary_action_field "$file" "Risk")"
+    project="$(secretary_action_field "$file" "Project")"
+    approval="$(secretary_action_field "$file" "Requires Approval")"
+    printf '%s | %s | %s | %s | %s | %s | %s\n' "$(basename "$file" .md)" "${status:-proposed}" "${risk:-medium}" "${approval:-1}" "${type:-local}" "${project:-general}" "$title"
+  done < <(find "$(secretary_dir)/actions" -type f -name '*.md' 2>/dev/null | sort)
+}
+
+secretary_action_show() {
+  local file
+  file="$(secretary_action_find "${1:-}")"
+  sed -n '1,260p' "$file"
+}
+
+secretary_action_set_status() {
+  local id="$1" status="$2" note="${3:-}" file tmp stamp
+  file="$(secretary_action_find "$id")"
+  tmp="$(mktemp)"
+  stamp="$(date -Is)"
+  awk -v status="$status" -v stamp="$stamp" '
+    index($0, "- Status:") == 1 && !done {
+      print "- Status: `" status "`"
+      print "- Updated: `" stamp "`"
+      done = 1
+      next
+    }
+    index($0, "- Updated:") == 1 { next }
+    { print }
+    END {
+      if (!done) {
+        print "- Status: `" status "`"
+        print "- Updated: `" stamp "`"
+      }
+    }
+  ' "$file" > "$tmp"
+  chmod 600 "$tmp"
+  mv "$tmp" "$file"
+  {
+    printf '\n'
+    printf -- '- `%s` `%s` %s\n' "$stamp" "$status" "${note:-No note.}"
+  } >> "$file"
+  printf '%s\n' "$file"
+}
+
+secretary_action_plan() {
+  secretary_init >/dev/null
+  local report
+  report="$(secretary_dir)/briefings/worker-actions-$(date +%F).md"
+  {
+    printf '# Worker Action Plan\n\n'
+    printf -- '- Generated: `%s`\n\n' "$(date -Is)"
+    printf '## Pending Actions\n\n'
+    secretary_action_list | tail -n +3 | sed 's/^/- /'
+    printf '\n## Due Tasks\n\n'
+    secretary_task_due | sed 's/^/- /' || true
+    printf '\n## Inbox Waiting For Triage\n\n'
+    secretary_inbox_list | tail -n +3 | sed 's/^/- /'
+    printf '\n## Execution Rules\n\n'
+    printf -- '- Proposed actions are planning artifacts, not completed work.\n'
+    printf -- '- Approval is required when `Requires Approval` is `1`.\n'
+    printf -- '- External messages, purchases, account changes, or destructive operations must remain proposed until explicitly approved.\n'
+  } | write_private_report "$report"
+  printf '%s\n' "$report"
+}
+
+secretary_action() {
+  local sub="${1:-list}"
+  shift || true
+  case "$sub" in
+    add) secretary_action_add "$@" ;;
+    list) secretary_action_list "$@" ;;
+    show) secretary_action_show "$@" ;;
+    approve) secretary_action_set_status "${1:-}" approved "${2:-Approved by operator.}" ;;
+    reject) secretary_action_set_status "${1:-}" rejected "${2:-Rejected by operator.}" ;;
+    done) secretary_action_set_status "${1:-}" done "${2:-Completed by worker.}" ;;
+    plan) secretary_action_plan "$@" ;;
+    *) die "Unknown secretary action command: $sub" ;;
+  esac
+}
+
 secretary_inbox_triage() {
   secretary_init >/dev/null
   local id="" to="" title="" due="" priority="normal" project="inbox" file body out
@@ -186,7 +332,7 @@ secretary_inbox_triage() {
       *) die "Unknown inbox triage option: $1" ;;
     esac
   done
-  [[ -n "$id" && -n "$to" ]] || die "Usage: oh-hermes secretary inbox triage --id ID --to task|decision|worklog [--title TITLE]"
+  [[ -n "$id" && -n "$to" ]] || die "Usage: oh-hermes secretary inbox triage --id ID --to task|decision|worklog|action [--title TITLE]"
   file="$(secretary_note_find inbox "$id")"
   [[ -n "$title" ]] || title="$(sed -n '1s/^# //p' "$file")"
   body="$(sed -n '/^## Content/,$p' "$file" | tail -n +3)"
@@ -200,7 +346,8 @@ secretary_inbox_triage() {
       ;;
     decision) out="$(secretary_decision_add --title "$title" --body "$body")" ;;
     worklog) out="$(secretary_worklog "$title" "$body")" ;;
-    *) die "--to must be task, decision, or worklog" ;;
+    action) out="$(secretary_action_add --title "$title" --body "$body" --type local --risk medium --project "$project" --requires-approval 1)" ;;
+    *) die "--to must be task, decision, worklog, or action" ;;
   esac
   mkdir -p "$(secretary_dir)/inbox/triaged"
   mv "$file" "$(secretary_dir)/inbox/triaged/$(basename "$file")"
@@ -792,6 +939,8 @@ secretary_brief() {
     done
     printf '\n## Due Tasks\n\n'
     secretary_task_due | sed 's/^/- /' || true
+    printf '\n## Worker Actions\n\n'
+    secretary_action_list | tail -n +3 | head -20 | sed 's/^/- /'
     printf '\n## Today Agenda\n\n'
     secretary_agenda_today | sed 's/^/- /' || true
     printf '\n## Recent Inbox\n\n'
@@ -954,6 +1103,8 @@ secretary_status() {
   printf 'briefings=%s\n' "$(find "$dir/briefings" -type f -name '*.md' 2>/dev/null | wc -l)"
   printf 'worklog=%s\n' "$(find "$dir/worklog" -type f -name '*.md' 2>/dev/null | wc -l)"
   printf 'decisions=%s\n' "$(find "$dir/decisions" -type f -name '*.md' 2>/dev/null | wc -l)"
+  printf 'actions=%s\n' "$(find "$dir/actions" -type f -name '*.md' 2>/dev/null | wc -l)"
+  printf 'open_actions=%s\n' "$(secretary_action_list 2>/dev/null | tail -n +3 | wc -l)"
   printf 'routines=%s\n' "$(find "$dir/routines" -type f -name '*.md' 2>/dev/null | wc -l)"
   printf 'routine_runs=%s\n' "$(find "$dir/routine-runs" -type f -name '*.md' 2>/dev/null | wc -l)"
   printf 'integrations=%s\n' "$(find "$dir/integrations" -type f -name '*.md' 2>/dev/null | wc -l)"
