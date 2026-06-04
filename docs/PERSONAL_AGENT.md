@@ -20,6 +20,9 @@ oh-hermes secretary init
 oh-hermes secretary task add --title "Follow up on X" --due 2026-06-05 --priority high
 oh-hermes secretary task list
 oh-hermes secretary task done <task-id-prefix>
+oh-hermes secretary agenda import ~/calendar.ics
+oh-hermes secretary agenda list
+oh-hermes secretary agenda today
 oh-hermes secretary notify status
 oh-hermes secretary notify enable-local
 oh-hermes secretary notify test --send
@@ -34,6 +37,7 @@ oh-hermes secretary --install-timer
 oh-hermes secretary status
 oh-hermes agent status
 oh-hermes agent report
+oh-hermes agent context-pack
 oh-hermes publish-check
 ```
 
@@ -50,3 +54,5 @@ Email, calendar, contacts, chat, and notifications are intentionally opt-in. Add
 - where secrets live outside the repo
 
 The integration policy files live under `~/.oh-hermes/secretary/integrations`. They are private state, not repo content.
+
+Agenda imports are read-only copies under `~/.oh-hermes/secretary/agenda`. Import `.ics`, `.md`, or `.txt` exports there instead of committing calendar data.

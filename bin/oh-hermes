@@ -43,8 +43,8 @@ Usage:
   oh-hermes self-review
   oh-hermes evolve-skill <skill-name> [--dry-run|--run] [--iterations N]
   oh-hermes god-mode [--once|--install-timer|--remove-timer|--status]
-  oh-hermes agent status|report
-  oh-hermes secretary init|brief|capture|task|reminders|notify|integrations|worklog|status|--install-timer|--remove-timer
+  oh-hermes agent status|report|context-pack
+  oh-hermes secretary init|brief|capture|task|agenda|reminders|notify|integrations|worklog|status|--install-timer|--remove-timer
   oh-hermes publish-check
   oh-hermes redact-check [path]
   oh-hermes test
@@ -161,6 +161,7 @@ cmd_secretary() {
     brief) secretary_brief "$@" ;;
     capture) secretary_capture "$@" ;;
     task) secretary_task "$@" ;;
+    agenda) secretary_agenda "$@" ;;
     reminders) secretary_reminders "$@" ;;
     notify) secretary_notify "$@" ;;
     integrations) secretary_integrations "$@" ;;

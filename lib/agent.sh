@@ -49,12 +49,36 @@ agent_report() {
   printf '%s\n' "$report"
 }
 
+agent_context_pack() {
+  local report="$OH_REPORT_DIR/context-pack-$(ts).md"
+  {
+    printf '# oh-hermes Context Pack\n\n'
+    printf -- '- Generated: `%s`\n\n' "$(date -Is)"
+    printf '## Purpose\n\n'
+    printf 'Redacted local summary for future agent sessions. Do not treat this as a complete export of private state.\n\n'
+    printf '## Agent Status\n\n'
+    agent_status
+    printf '\n## Open Tasks\n\n'
+    secretary_task_list 2>&1 || true
+    printf '\n## Due Tasks\n\n'
+    secretary_task_due 2>&1 || true
+    printf '\n## Today Agenda\n\n'
+    secretary_agenda_today 2>&1 || true
+    printf '\n## Integrations\n\n'
+    secretary_integrations_status 2>&1 || true
+    printf '\n## Notification Status\n\n'
+    secretary_notify status 2>&1 || true
+  } | write_private_report "$report"
+  printf '%s\n' "$report"
+}
+
 agent_cmd() {
   local sub="${1:-status}"
   shift || true
   case "$sub" in
     status) agent_status "$@" ;;
     report) agent_report "$@" ;;
+    context-pack) agent_context_pack "$@" ;;
     *) die "Unknown agent command: $sub" ;;
   esac
 }

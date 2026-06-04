@@ -11,7 +11,7 @@ secretary_slug() {
 secretary_init() {
   local dir
   dir="$(secretary_dir)"
-  run mkdir -p "$dir/inbox" "$dir/tasks" "$dir/briefings" "$dir/worklog" "$dir/decisions" "$dir/reminders" "$dir/integrations"
+  run mkdir -p "$dir/inbox" "$dir/tasks" "$dir/briefings" "$dir/worklog" "$dir/decisions" "$dir/reminders" "$dir/integrations" "$dir/agenda/sources" "$dir/agenda/events"
   if [[ ! -f "$dir/preferences.md" ]]; then
     run cp "$OH_ROOT/templates/secretary/preferences.md" "$dir/preferences.md"
   fi
@@ -253,6 +253,122 @@ secretary_task() {
   esac
 }
 
+secretary_ics_unescape() {
+  sed -E 's/\\n/ /g; s/\\,/,/g; s/\\;/;/g; s/[[:space:]]+/ /g'
+}
+
+secretary_ics_date() {
+  local raw="$1"
+  raw="${raw%%T*}"
+  raw="${raw%%Z}"
+  if [[ "$raw" =~ ^[0-9]{8}$ ]]; then
+    printf '%s-%s-%s' "${raw:0:4}" "${raw:4:2}" "${raw:6:2}"
+  else
+    printf '%s' "$raw"
+  fi
+}
+
+secretary_agenda_import_ics() {
+  local src="$1" source_name="$2" dir out line in_event=0 summary="" start="" end="" location="" uid="" count=0
+  dir="$(secretary_dir)/agenda/events"
+  out="$dir/$(ts)-$(secretary_slug "$source_name").md"
+  {
+    printf '# Agenda Import: %s\n\n' "$source_name"
+    printf -- '- Imported: `%s`\n' "$(date -Is)"
+    printf -- '- Source: `%s`\n\n' "$source_name"
+    printf '## Events\n\n'
+    while IFS= read -r line || [[ -n "$line" ]]; do
+      case "$line" in
+        BEGIN:VEVENT)
+          in_event=1; summary=""; start=""; end=""; location=""; uid="" ;;
+        END:VEVENT)
+          if [[ "$in_event" == "1" ]]; then
+            count=$((count + 1))
+            printf -- '- `%s` %s' "$(secretary_ics_date "$start")" "${summary:-Untitled event}"
+            [[ -n "$end" ]] && printf ' until `%s`' "$(secretary_ics_date "$end")"
+            [[ -n "$location" ]] && printf ' at %s' "$location"
+            [[ -n "$uid" ]] && printf ' (`%s`)' "$uid"
+            printf '\n'
+          fi
+          in_event=0 ;;
+        SUMMARY:*) [[ "$in_event" == "1" ]] && summary="$(printf '%s' "${line#SUMMARY:}" | secretary_ics_unescape)" ;;
+        DTSTART*) [[ "$in_event" == "1" ]] && start="${line#*:}" ;;
+        DTEND*) [[ "$in_event" == "1" ]] && end="${line#*:}" ;;
+        LOCATION:*) [[ "$in_event" == "1" ]] && location="$(printf '%s' "${line#LOCATION:}" | secretary_ics_unescape)" ;;
+        UID:*) [[ "$in_event" == "1" ]] && uid="$(printf '%s' "${line#UID:}" | secretary_ics_unescape)" ;;
+      esac
+    done < "$src"
+    [[ "$count" -gt 0 ]] || printf 'No events found.\n'
+  } | write_private_report "$out"
+  printf '%s\n' "$out"
+}
+
+secretary_agenda_import_markdown() {
+  local src="$1" source_name="$2" out
+  out="$(secretary_dir)/agenda/events/$(ts)-$(secretary_slug "$source_name").md"
+  {
+    printf '# Agenda Import: %s\n\n' "$source_name"
+    printf -- '- Imported: `%s`\n' "$(date -Is)"
+    printf -- '- Source: `%s`\n\n' "$source_name"
+    printf '## Events\n\n'
+    sed -n '1,200p' "$src"
+  } | write_private_report "$out"
+  printf '%s\n' "$out"
+}
+
+secretary_agenda_import() {
+  secretary_init >/dev/null
+  local src="${1:-}" copied source_name ext
+  [[ -n "$src" ]] || die "Usage: oh-hermes secretary agenda import <file.ics|file.md>"
+  [[ -f "$src" ]] || die "Agenda source is not a file: $src"
+  source_name="$(basename "$src")"
+  copied="$(secretary_dir)/agenda/sources/$(ts)-$(secretary_slug "$source_name")"
+  cp "$src" "$copied"
+  chmod 600 "$copied"
+  ext="${source_name##*.}"
+  if grep -q '^BEGIN:VCALENDAR' "$copied"; then
+    secretary_agenda_import_ics "$copied" "$source_name"
+  else
+    case "$ext" in
+      ics|ICS) secretary_agenda_import_ics "$copied" "$source_name" ;;
+      md|MD|txt|TXT) secretary_agenda_import_markdown "$copied" "$source_name" ;;
+      *) die "Unsupported agenda file type: $ext" ;;
+    esac
+  fi
+}
+
+secretary_agenda_list() {
+  secretary_init >/dev/null
+  local file
+  for file in "$(secretary_dir)"/agenda/events/*.md; do
+    [[ -f "$file" ]] || continue
+    printf '## %s\n' "$(basename "$file")"
+    sed -n '/^## Events/,$p' "$file" | tail -n +3 | head -40
+    printf '\n'
+  done
+}
+
+secretary_agenda_today() {
+  secretary_init >/dev/null
+  local today file
+  today="$(date +%F)"
+  for file in "$(secretary_dir)"/agenda/events/*.md; do
+    [[ -f "$file" ]] || continue
+    grep -F "\`$today\`" "$file" || true
+  done
+}
+
+secretary_agenda() {
+  local sub="${1:-list}"
+  shift || true
+  case "$sub" in
+    import) secretary_agenda_import "$@" ;;
+    list) secretary_agenda_list "$@" ;;
+    today) secretary_agenda_today "$@" ;;
+    *) die "Unknown secretary agenda command: $sub" ;;
+  esac
+}
+
 secretary_integration_template() {
   local name="$1" provider="$2" mode="$3" file="$4"
   {
@@ -407,6 +523,8 @@ secretary_brief() {
     done
     printf '\n## Due Tasks\n\n'
     secretary_task_due | sed 's/^/- /' || true
+    printf '\n## Today Agenda\n\n'
+    secretary_agenda_today | sed 's/^/- /' || true
     printf '\n## Recent Inbox\n\n'
     find "$dir/inbox" -type f -name '*.md' -mtime -14 -print 2>/dev/null | sort | tail -20 | while IFS= read -r note; do
       printf -- '- `%s` ' "$(basename "$note")"
@@ -454,6 +572,7 @@ secretary_status() {
   printf 'briefings=%s\n' "$(find "$dir/briefings" -type f -name '*.md' 2>/dev/null | wc -l)"
   printf 'worklog=%s\n' "$(find "$dir/worklog" -type f -name '*.md' 2>/dev/null | wc -l)"
   printf 'integrations=%s\n' "$(find "$dir/integrations" -type f -name '*.md' 2>/dev/null | wc -l)"
+  printf 'agenda_imports=%s\n' "$(find "$dir/agenda/events" -type f -name '*.md' 2>/dev/null | wc -l)"
 }
 
 install_secretary_timer() {

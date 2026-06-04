@@ -8,6 +8,19 @@ trap 'rm -rf "$STATE"' EXIT
 
 export OH_HERMES_STATE="$STATE"
 
+agenda_file="$STATE/sample.ics"
+cat > "$agenda_file" <<'ICS'
+BEGIN:VCALENDAR
+BEGIN:VEVENT
+UID:test-event
+DTSTART:20000101T090000Z
+DTEND:20000101T100000Z
+SUMMARY:Test calendar event
+LOCATION:Local
+END:VEVENT
+END:VCALENDAR
+ICS
+
 task_file="$("$ROOT/bin/oh-hermes" secretary task add --title "Test due task" --due 2000-01-01 --priority high --project smoke --body "verify task lifecycle")"
 [[ -f "$task_file" ]]
 
@@ -22,6 +35,10 @@ grep -q "enabled=" <<< "$notify_status"
 notify_status="$("$ROOT/bin/oh-hermes" secretary notify status)"
 grep -q "enabled=1" <<< "$notify_status"
 "$ROOT/bin/oh-hermes" secretary notify disable >/dev/null
+agenda_import="$("$ROOT/bin/oh-hermes" secretary agenda import "$agenda_file")"
+[[ -f "$agenda_import" ]]
+agenda_list="$("$ROOT/bin/oh-hermes" secretary agenda list)"
+grep -q "Test calendar event" <<< "$agenda_list"
 "$ROOT/bin/oh-hermes" secretary integrations init >/dev/null
 integration_status="$("$ROOT/bin/oh-hermes" secretary integrations status)"
 grep -q "Email" <<< "$integration_status"
@@ -37,4 +54,5 @@ grep -q "done" <<< "$task_list_all"
 agent_status="$("$ROOT/bin/oh-hermes" agent status)"
 grep -q "oh-hermes Agent Status" <<< "$agent_status"
 "$ROOT/bin/oh-hermes" agent report >/dev/null
+"$ROOT/bin/oh-hermes" agent context-pack >/dev/null
 grep -q "publish-check" "$ROOT/bin/oh-hermes"
