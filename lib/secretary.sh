@@ -11,7 +11,7 @@ secretary_slug() {
 secretary_init() {
   local dir
   dir="$(secretary_dir)"
-  run mkdir -p "$dir/inbox" "$dir/tasks" "$dir/briefings" "$dir/worklog" "$dir/decisions" "$dir/reminders" "$dir/integrations" "$dir/agenda/sources" "$dir/agenda/events"
+  run mkdir -p "$dir/inbox" "$dir/tasks" "$dir/briefings" "$dir/worklog" "$dir/decisions" "$dir/reminders" "$dir/integrations" "$dir/agenda/sources" "$dir/agenda/events" "$dir/agenda/feeds"
   if [[ ! -f "$dir/preferences.md" ]]; then
     run cp "$OH_ROOT/templates/secretary/preferences.md" "$dir/preferences.md"
   fi
@@ -337,6 +337,122 @@ secretary_agenda_import() {
   fi
 }
 
+secretary_agenda_feed_add() {
+  secretary_init >/dev/null
+  local name="" source="" type="auto" file
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --name) name="${2:-}"; [[ -n "$name" ]] || die "--name needs a value"; shift 2 ;;
+      --source) source="${2:-}"; [[ -n "$source" ]] || die "--source needs a value"; shift 2 ;;
+      --type) type="${2:-}"; [[ -n "$type" ]] || die "--type needs a value"; shift 2 ;;
+      *) die "Unknown agenda feed add option: $1" ;;
+    esac
+  done
+  [[ -n "$name" && -n "$source" ]] || die "Usage: oh-hermes secretary agenda feed add --name NAME --source PATH_OR_URL [--type ics|markdown|auto]"
+  file="$(secretary_dir)/agenda/feeds/$(secretary_slug "$name").env"
+  {
+    printf 'NAME=%q\n' "$name"
+    printf 'SOURCE=%q\n' "$source"
+    printf 'TYPE=%q\n' "$type"
+    printf 'ENABLED=1\n'
+  } > "$file"
+  chmod 600 "$file"
+  printf '%s\n' "$file"
+}
+
+secretary_agenda_feed_list() {
+  secretary_init >/dev/null
+  local file name source type enabled
+  printf 'Name | Type | Enabled | Source\n'
+  printf -- '---|---|---|---\n'
+  for file in "$(secretary_dir)"/agenda/feeds/*.env; do
+    [[ -f "$file" ]] || continue
+    name=""; source=""; type=""; enabled=""
+    # shellcheck source=/dev/null
+    source "$file"
+    printf '%s | %s | %s | %s\n' "${NAME:-$(basename "$file" .env)}" "${TYPE:-auto}" "${ENABLED:-1}" "${SOURCE:-}"
+  done
+}
+
+secretary_agenda_feed_fetch() {
+  local source="$1" name="$2" out
+  out="$(secretary_dir)/agenda/sources/$(ts)-$(secretary_slug "$name")"
+  case "$source" in
+    http://*|https://*)
+      if have curl; then
+        curl -fsSL --max-time "${OH_HERMES_AGENDA_FETCH_TIMEOUT:-20}" "$source" -o "$out"
+      else
+        die "curl is required to sync URL agenda feeds"
+      fi
+      ;;
+    *)
+      [[ -f "$source" ]] || die "Agenda feed source missing: $source"
+      cp "$source" "$out"
+      ;;
+  esac
+  chmod 600 "$out"
+  printf '%s\n' "$out"
+}
+
+secretary_agenda_feed_sync() {
+  secretary_init >/dev/null
+  local file name source type enabled fetched report count=0
+  report="$(secretary_dir)/agenda/sync-$(ts).md"
+  {
+    printf '# Agenda Feed Sync\n\n'
+    printf -- '- Generated: `%s`\n\n' "$(date -Is)"
+    for file in "$(secretary_dir)"/agenda/feeds/*.env; do
+      [[ -f "$file" ]] || continue
+      NAME=""; SOURCE=""; TYPE="auto"; ENABLED="1"
+      # shellcheck source=/dev/null
+      source "$file"
+      name="${NAME:-$(basename "$file" .env)}"
+      source="${SOURCE:-}"
+      type="${TYPE:-auto}"
+      enabled="${ENABLED:-1}"
+      if [[ "$enabled" != "1" ]]; then
+        printf -- '- skipped `%s` disabled\n' "$name"
+        continue
+      fi
+      if [[ -z "$source" ]]; then
+        printf -- '- skipped `%s` missing source\n' "$name"
+        continue
+      fi
+      if fetched="$(secretary_agenda_feed_fetch "$source" "$name" 2>&1)"; then
+        count=$((count + 1))
+        case "$type" in
+          ics) secretary_agenda_import_ics "$fetched" "$name" >/dev/null ;;
+          markdown|md|txt) secretary_agenda_import_markdown "$fetched" "$name" >/dev/null ;;
+          auto)
+            if grep -q '^BEGIN:VCALENDAR' "$fetched"; then
+              secretary_agenda_import_ics "$fetched" "$name" >/dev/null
+            else
+              secretary_agenda_import_markdown "$fetched" "$name" >/dev/null
+            fi
+            ;;
+          *) printf -- '- `%s` fetched but unknown type `%s`\n' "$name" "$type"; continue ;;
+        esac
+        printf -- '- synced `%s`\n' "$name"
+      else
+        printf -- '- failed `%s`: %s\n' "$name" "$fetched"
+      fi
+    done
+    [[ "$count" -gt 0 ]] || printf 'No feeds synced.\n'
+  } | write_private_report "$report"
+  printf '%s\n' "$report"
+}
+
+secretary_agenda_feed() {
+  local sub="${1:-list}"
+  shift || true
+  case "$sub" in
+    add) secretary_agenda_feed_add "$@" ;;
+    list) secretary_agenda_feed_list "$@" ;;
+    sync) secretary_agenda_feed_sync "$@" ;;
+    *) die "Unknown secretary agenda feed command: $sub" ;;
+  esac
+}
+
 secretary_agenda_list() {
   secretary_init >/dev/null
   local file
@@ -363,6 +479,7 @@ secretary_agenda() {
   shift || true
   case "$sub" in
     import) secretary_agenda_import "$@" ;;
+    feed) secretary_agenda_feed "$@" ;;
     list) secretary_agenda_list "$@" ;;
     today) secretary_agenda_today "$@" ;;
     *) die "Unknown secretary agenda command: $sub" ;;
@@ -573,6 +690,7 @@ secretary_status() {
   printf 'worklog=%s\n' "$(find "$dir/worklog" -type f -name '*.md' 2>/dev/null | wc -l)"
   printf 'integrations=%s\n' "$(find "$dir/integrations" -type f -name '*.md' 2>/dev/null | wc -l)"
   printf 'agenda_imports=%s\n' "$(find "$dir/agenda/events" -type f -name '*.md' 2>/dev/null | wc -l)"
+  printf 'agenda_feeds=%s\n' "$(find "$dir/agenda/feeds" -type f -name '*.env' 2>/dev/null | wc -l)"
 }
 
 install_secretary_timer() {
@@ -585,9 +703,12 @@ install_secretary_timer() {
   run cp "$OH_ROOT/systemd/user/oh-hermes-secretary.timer" "$user_dir/"
   run cp "$OH_ROOT/systemd/user/oh-hermes-reminders.service" "$user_dir/"
   run cp "$OH_ROOT/systemd/user/oh-hermes-reminders.timer" "$user_dir/"
+  run cp "$OH_ROOT/systemd/user/oh-hermes-agenda-sync.service" "$user_dir/"
+  run cp "$OH_ROOT/systemd/user/oh-hermes-agenda-sync.timer" "$user_dir/"
   run systemctl --user daemon-reload
   run systemctl --user enable --now oh-hermes-secretary.timer
   run systemctl --user enable --now oh-hermes-reminders.timer
+  run systemctl --user enable --now oh-hermes-agenda-sync.timer
 }
 
 remove_secretary_timer() {
@@ -596,6 +717,7 @@ remove_secretary_timer() {
   info "Removing daily oh-hermes secretary timer"
   run systemctl --user disable --now oh-hermes-secretary.timer || true
   run systemctl --user disable --now oh-hermes-reminders.timer || true
-  run rm -f "$user_dir/oh-hermes-secretary.service" "$user_dir/oh-hermes-secretary.timer" "$user_dir/oh-hermes-reminders.service" "$user_dir/oh-hermes-reminders.timer"
+  run systemctl --user disable --now oh-hermes-agenda-sync.timer || true
+  run rm -f "$user_dir/oh-hermes-secretary.service" "$user_dir/oh-hermes-secretary.timer" "$user_dir/oh-hermes-reminders.service" "$user_dir/oh-hermes-reminders.timer" "$user_dir/oh-hermes-agenda-sync.service" "$user_dir/oh-hermes-agenda-sync.timer"
   run systemctl --user daemon-reload
 }

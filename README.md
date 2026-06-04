@@ -45,6 +45,8 @@ oh-hermes god-mode --install-timer
 oh-hermes secretary task add --title "Follow up" --due 2026-06-05
 oh-hermes secretary task list
 oh-hermes secretary agenda import ~/calendar.ics
+oh-hermes secretary agenda feed add --name local-calendar --source ~/calendar.ics
+oh-hermes secretary agenda feed sync
 oh-hermes secretary agenda today
 oh-hermes secretary notify enable-local
 oh-hermes secretary reminders

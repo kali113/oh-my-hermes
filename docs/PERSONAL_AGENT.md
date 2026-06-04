@@ -21,6 +21,8 @@ oh-hermes secretary task add --title "Follow up on X" --due 2026-06-05 --priorit
 oh-hermes secretary task list
 oh-hermes secretary task done <task-id-prefix>
 oh-hermes secretary agenda import ~/calendar.ics
+oh-hermes secretary agenda feed add --name local-calendar --source ~/calendar.ics
+oh-hermes secretary agenda feed sync
 oh-hermes secretary agenda list
 oh-hermes secretary agenda today
 oh-hermes secretary notify status
@@ -41,7 +43,7 @@ oh-hermes agent context-pack
 oh-hermes publish-check
 ```
 
-`secretary --install-timer` installs both the daily briefing timer and the half-hourly reminder check.
+`secretary --install-timer` installs the daily briefing timer, the half-hourly reminder check, and hourly read-only agenda feed sync.
 
 ## Integration Boundary
 
@@ -55,4 +57,4 @@ Email, calendar, contacts, chat, and notifications are intentionally opt-in. Add
 
 The integration policy files live under `~/.oh-hermes/secretary/integrations`. They are private state, not repo content.
 
-Agenda imports are read-only copies under `~/.oh-hermes/secretary/agenda`. Import `.ics`, `.md`, or `.txt` exports there instead of committing calendar data.
+Agenda imports and feed definitions are read-only private state under `~/.oh-hermes/secretary/agenda`. Import `.ics`, `.md`, or `.txt` exports there instead of committing calendar data.

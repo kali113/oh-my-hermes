@@ -37,6 +37,10 @@ grep -q "enabled=1" <<< "$notify_status"
 "$ROOT/bin/oh-hermes" secretary notify disable >/dev/null
 agenda_import="$("$ROOT/bin/oh-hermes" secretary agenda import "$agenda_file")"
 [[ -f "$agenda_import" ]]
+feed_file="$("$ROOT/bin/oh-hermes" secretary agenda feed add --name smoke-agenda --source "$agenda_file")"
+[[ -f "$feed_file" ]]
+"$ROOT/bin/oh-hermes" secretary agenda feed list | grep -q "smoke-agenda"
+"$ROOT/bin/oh-hermes" secretary agenda feed sync >/dev/null
 agenda_list="$("$ROOT/bin/oh-hermes" secretary agenda list)"
 grep -q "Test calendar event" <<< "$agenda_list"
 "$ROOT/bin/oh-hermes" secretary integrations init >/dev/null

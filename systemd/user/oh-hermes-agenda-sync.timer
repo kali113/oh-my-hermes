@@ -1,0 +1,12 @@
+[Unit]
+Description=Hourly oh-hermes read-only agenda feed sync
+
+[Timer]
+OnBootSec=7m
+OnUnitActiveSec=1h
+Persistent=true
+RandomizedDelaySec=10m
+Unit=oh-hermes-agenda-sync.service
+
+[Install]
+WantedBy=timers.target

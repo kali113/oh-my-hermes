@@ -1,0 +1,7 @@
+[Unit]
+Description=Sync oh-hermes read-only agenda feeds
+Documentation=https://github.com/NousResearch/hermes-agent
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/oh-hermes secretary agenda feed sync
