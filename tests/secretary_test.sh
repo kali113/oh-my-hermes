@@ -52,6 +52,8 @@ grep -q "smoke-routine" <<< "$routine_run"
 while IFS= read -r run_file; do
   [[ -f "$run_file" ]]
   grep -q "Routine Run" "$run_file"
+  grep -q "Ran: \`" "$run_file"
+  grep -q "Source: \`" "$run_file"
 done <<< "$routine_run"
 
 task_list="$("$ROOT/bin/oh-hermes" secretary task list)"

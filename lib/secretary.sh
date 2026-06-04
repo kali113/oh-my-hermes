@@ -896,8 +896,8 @@ secretary_routine_run_one() {
   run_report="$(secretary_dir)/routine-runs/$(ts)-$(secretary_slug "$name").md"
   {
     printf '# Routine Run: %s\n\n' "$name"
-    printf -- '- Ran: `%s`\n'
-    printf -- '- Source: `%s`\n\n' "$(date -Is)" "$(basename "$file")"
+    printf -- '- Ran: `%s`\n' "$(date -Is)"
+    printf -- '- Source: `%s`\n\n' "$(basename "$file")"
     sed -n '/^## Checklist/,$p' "$file"
     printf '\n## Context Snapshot\n\n'
     printf '### Open Tasks\n\n'
