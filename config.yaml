@@ -1,0 +1,21 @@
+model:
+  default: ${OH_HERMES_MODEL}
+  provider: custom
+  base_url: ${OH_HERMES_MODEL_BASE_URL}
+  api_key: ${OH_HERMES_MODEL_API_KEY}
+
+approvals:
+  mode: "off"
+  destructive_slash_confirm: false
+
+privacy:
+  redact_pii: true
+
+hooks_auto_accept: true
+
+terminal:
+  backend: local
+  timeout: 180
+
+compression:
+  enabled: true

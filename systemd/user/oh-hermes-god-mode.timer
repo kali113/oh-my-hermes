@@ -1,0 +1,12 @@
+[Unit]
+Description=Hourly oh-hermes autonomous god-mode cycle
+
+[Timer]
+OnBootSec=10m
+OnUnitActiveSec=1h
+Persistent=true
+RandomizedDelaySec=10m
+Unit=oh-hermes-god-mode.service
+
+[Install]
+WantedBy=timers.target

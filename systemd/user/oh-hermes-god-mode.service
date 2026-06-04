@@ -1,0 +1,12 @@
+[Unit]
+Description=Run oh-hermes autonomous god-mode cycle
+Documentation=https://github.com/NousResearch/hermes-agent
+After=network-online.target
+
+[Service]
+Type=oneshot
+Environment=HERMES_EVOLUTION_MAX_TOKENS=2048
+Environment=OH_HERMES_EVOLVE_TIMEOUT=300
+Environment=OH_HERMES_GOD_EVOLVE_ITERATIONS=1
+Environment=OH_HERMES_GOD_COMMIT=1
+ExecStart=%h/.local/bin/oh-hermes god-mode --once

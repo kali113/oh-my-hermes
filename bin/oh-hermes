@@ -1,0 +1,182 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+OH_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+export OH_ROOT
+
+# shellcheck source=../lib/common.sh
+source "$OH_ROOT/lib/common.sh"
+# shellcheck source=../lib/hermes_config.sh
+source "$OH_ROOT/lib/hermes_config.sh"
+# shellcheck source=../lib/redaction.sh
+source "$OH_ROOT/lib/redaction.sh"
+# shellcheck source=../lib/modules.sh
+source "$OH_ROOT/lib/modules.sh"
+# shellcheck source=../lib/auto_improve.sh
+source "$OH_ROOT/lib/auto_improve.sh"
+
+usage() {
+  cat <<'EOF'
+oh-hermes - Arch-first Hermes Agent companion setup
+
+Usage:
+  oh-hermes install [--dry-run] [--no-modules] [--profile]
+  oh-hermes update [--system]
+  oh-hermes status
+  oh-hermes doctor
+  oh-hermes backup
+  oh-hermes provider
+  oh-hermes ui [--background|--install-service|--remove-service|--status]
+  oh-hermes modules list|status|enable <name>
+  oh-hermes auto-improve [--dry-run|--install-timer|--remove-timer]
+  oh-hermes self-review
+  oh-hermes evolve-skill <skill-name> [--dry-run|--run] [--iterations N]
+  oh-hermes god-mode [--once|--install-timer|--remove-timer|--status]
+  oh-hermes redact-check [path]
+  oh-hermes test
+EOF
+}
+
+cmd_install() {
+  local install_modules=1
+  local install_profile=0
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --dry-run) OH_DRY_RUN=1; export OH_DRY_RUN; shift ;;
+      --no-modules) install_modules=0; shift ;;
+      --profile) install_profile=1; shift ;;
+      *) die "Unknown install option: $1" ;;
+    esac
+  done
+
+  backup_hermes >/dev/null
+  run mkdir -p "$HOME/.local/bin"
+  run ln -sfn "$OH_ROOT/bin/oh-hermes" "$HOME/.local/bin/oh-hermes"
+  apply_core_hermes_config
+  if [[ "$install_profile" == "1" ]]; then
+    install_distribution_profile
+  fi
+  if [[ "$install_modules" == "1" ]]; then
+    install_default_modules
+  fi
+  restart_gateway_if_present
+  info "Install complete"
+}
+
+cmd_update() {
+  local system_update=0
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --system) system_update=1; shift ;;
+      *) die "Unknown update option: $1" ;;
+    esac
+  done
+
+  backup_hermes >/dev/null
+  info "Updating Hermes"
+  run hermes update --backup -y
+  info "Updating Hermes config"
+  run hermes config migrate
+  info "Updating default modules"
+  module_enable anysearch
+  module_enable gbrain
+  module_enable workspace
+  module_enable self-evolution
+  if [[ "$system_update" == "1" ]]; then
+    if have yay; then
+      info "Updating Arch packages with yay"
+      run yay -Syu
+    else
+      warn "yay not found; skipping system update"
+    fi
+  fi
+}
+
+cmd_status() {
+  info "Hermes"
+  hermes version || true
+  printf '\n'
+  hermes status || true
+  printf '\n'
+  info "oh-hermes modules"
+  module_status_all
+}
+
+cmd_doctor() {
+  info "Running Hermes checks"
+  hermes config check || true
+  hermes doctor || true
+  hermes prompt-size || true
+  info "Module status"
+  module_status_all
+  redact_check "$OH_ROOT"
+}
+
+cmd_modules() {
+  local sub="${1:-}"
+  shift || true
+  case "$sub" in
+    list) module_list ;;
+    status|"") module_status_all ;;
+    enable)
+      [[ $# -eq 1 ]] || die "Usage: oh-hermes modules enable <name>"
+      module_enable "$1"
+      ;;
+    *) die "Unknown modules command: $sub" ;;
+  esac
+}
+
+cmd_auto_improve() {
+  local dry=0
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --install-timer) install_auto_improve_timer; return 0 ;;
+      --remove-timer) remove_auto_improve_timer; return 0 ;;
+      --dry-run) dry=1; shift ;;
+      *) die "Unknown auto-improve option: $1" ;;
+    esac
+  done
+  auto_improve "$dry"
+}
+
+cmd_test() {
+  local failed=0
+  info "Checking shell syntax"
+  while IFS= read -r file; do
+    bash -n "$file" || failed=1
+  done < <(find "$OH_ROOT" -type f \( -name '*.sh' -o -path "$OH_ROOT/bin/oh-hermes" \) -not -path '*/vendor/*')
+  info "Running redaction check"
+  redact_check "$OH_ROOT" || failed=1
+  [[ "$failed" == "0" ]] || die "Tests failed"
+  info "Tests passed"
+}
+
+main() {
+  local cmd="${1:-}"
+  shift || true
+  case "$cmd" in
+    install) cmd_install "$@" ;;
+    update) cmd_update "$@" ;;
+    status) cmd_status "$@" ;;
+    doctor) cmd_doctor "$@" ;;
+    backup) backup_hermes ;;
+    provider) configure_provider ;;
+    ui)
+      # shellcheck source=../modules/workspace.sh
+      source "$OH_ROOT/modules/workspace.sh"
+      start_workspace "$@"
+      ;;
+    modules) cmd_modules "$@" ;;
+    auto-improve) cmd_auto_improve "$@" ;;
+    self-review) self_review "$@" ;;
+    evolve-skill) evolve_skill "$@" ;;
+    god-mode) god_mode "$@" ;;
+    redact-check) redact_check "${1:-$OH_ROOT}" ;;
+    test) cmd_test ;;
+    -h|--help|help|"") usage ;;
+    *) die "Unknown command: $cmd" ;;
+  esac
+}
+
+main "$@"

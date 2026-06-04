@@ -1,0 +1,13 @@
+[Unit]
+Description=oh-hermes dashboard
+After=network.target
+
+[Service]
+Type=simple
+Environment=HERMES_DASHBOARD_TUI=1
+ExecStart=/usr/bin/bash -lc 'export PATH="$HOME/.npm-global/bin:$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin"; exec hermes dashboard --host 127.0.0.1 --port 9119 --no-open --skip-build'
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

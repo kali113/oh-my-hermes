@@ -1,0 +1,11 @@
+[Unit]
+Description=Weekly oh-hermes self-improvement report
+
+[Timer]
+OnCalendar=Sun 04:00
+Persistent=true
+RandomizedDelaySec=30m
+Unit=oh-hermes-auto-improve.service
+
+[Install]
+WantedBy=timers.target

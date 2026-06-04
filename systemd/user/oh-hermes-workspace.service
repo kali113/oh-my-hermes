@@ -1,0 +1,13 @@
+[Unit]
+Description=oh-hermes Workspace UI
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/hermes-workspace
+ExecStart=/usr/bin/bash -lc 'export PATH="$HOME/.npm-global/bin:$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin"; exec pnpm dev --host 127.0.0.1'
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

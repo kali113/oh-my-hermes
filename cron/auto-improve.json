@@ -1,0 +1,8 @@
+{
+  "name": "oh-hermes-auto-improve",
+  "description": "Generate a local self-improvement report without applying changes.",
+  "schedule": "0 4 * * 0",
+  "command": "oh-hermes auto-improve --dry-run",
+  "enabled": false
+}
+

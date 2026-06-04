@@ -1,0 +1,33 @@
+{
+  "name": "oh-hermes",
+  "version": "0.1.0",
+  "conformance_version": "1.0.0",
+  "description": "Arch-first Hermes Agent companion skills for brain, research, code, swarm, and guarded self-improvement workflows.",
+  "skills": [
+    {
+      "name": "oh-brain",
+      "path": "oh-brain/SKILL.md",
+      "description": "Use GBrain and Hermes memory deliberately before external research or long-running work."
+    },
+    {
+      "name": "oh-research",
+      "path": "oh-research/SKILL.md",
+      "description": "Current research workflow using AnySearch/GBrain with citations and private-data boundaries."
+    },
+    {
+      "name": "oh-code",
+      "path": "oh-code/SKILL.md",
+      "description": "Code execution workflow with backup, verification, and publish-safe reporting."
+    },
+    {
+      "name": "oh-swarm",
+      "path": "oh-swarm/SKILL.md",
+      "description": "Multi-agent task decomposition for Hermes Workspace or Hermes workers."
+    },
+    {
+      "name": "oh-auto-improve",
+      "path": "oh-auto-improve/SKILL.md",
+      "description": "Guarded self-improvement loop for skills, docs, and setup scripts."
+    }
+  ]
+}

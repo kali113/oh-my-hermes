@@ -1,0 +1,17 @@
+.env
+.env.*
+!.env.EXAMPLE
+*.log
+*.tmp
+*.bak
+node_modules/
+vendor/
+runtime/
+backups/
+reports/private/
+reports/*.raw.*
+*.tar
+*.tar.gz
+*.zip
+.DS_Store
+
