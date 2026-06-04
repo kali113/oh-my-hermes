@@ -7,6 +7,9 @@ STATE="$(mktemp -d)"
 trap 'rm -rf "$STATE"' EXIT
 
 export OH_HERMES_STATE="$STATE"
+"$ROOT/bin/oh-hermes" secretary init >/dev/null
+default_routines="$("$ROOT/bin/oh-hermes" secretary routine list)"
+grep -q "Daily Review" <<< "$default_routines"
 
 agenda_file="$STATE/sample.ics"
 inbox_file="$STATE/note.md"
@@ -40,6 +43,16 @@ decision_list="$("$ROOT/bin/oh-hermes" secretary decision list)"
 grep -q "Smoke decision" <<< "$decision_list"
 decision_show="$("$ROOT/bin/oh-hermes" secretary decision show "$(basename "$decision_file" .md)")"
 grep -q "Use private decision log" <<< "$decision_show"
+routine_file="$("$ROOT/bin/oh-hermes" secretary routine add --name "Smoke routine" --schedule daily --body "- [ ] Check smoke task")"
+[[ -f "$routine_file" ]]
+routine_list="$("$ROOT/bin/oh-hermes" secretary routine list)"
+grep -q "Smoke routine" <<< "$routine_list"
+routine_run="$("$ROOT/bin/oh-hermes" secretary routine run daily)"
+grep -q "smoke-routine" <<< "$routine_run"
+while IFS= read -r run_file; do
+  [[ -f "$run_file" ]]
+  grep -q "Routine Run" "$run_file"
+done <<< "$routine_run"
 
 task_list="$("$ROOT/bin/oh-hermes" secretary task list)"
 grep -q "Test due task" <<< "$task_list"

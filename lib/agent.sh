@@ -64,6 +64,8 @@ agent_context_pack() {
     secretary_inbox_list 2>&1 || true
     printf '\n## Decisions\n\n'
     secretary_decision_list 2>&1 || true
+    printf '\n## Routines\n\n'
+    secretary_routine_list 2>&1 || true
     printf '\n## Due Tasks\n\n'
     secretary_task_due 2>&1 || true
     printf '\n## Today Agenda\n\n'

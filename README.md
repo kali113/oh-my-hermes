@@ -26,6 +26,7 @@ cd /home/arch/oh-hermes
 - Optional MemOS and Hermes self-evolution lab modules.
 - Durable `systemd --user` MemOS viewer service for local memory inspection.
 - Personal secretary/worker layer for private tasks, briefings, decisions, and work logs.
+- Default daily review routine with a scheduled routine runner.
 - Weekly `systemd --user` auto-improvement reports.
 - Redaction checks before publishing.
 
@@ -45,6 +46,8 @@ oh-hermes god-mode --install-timer
 oh-hermes secretary task add --title "Follow up" --due 2026-06-05
 oh-hermes secretary inbox import ~/note.md
 oh-hermes secretary inbox triage --id note --to task --due 2026-06-05
+oh-hermes secretary routine add --name "Morning review" --schedule daily
+oh-hermes secretary routine run daily
 oh-hermes secretary task list
 oh-hermes secretary agenda import ~/calendar.ics
 oh-hermes secretary agenda feed add --name local-calendar --source ~/calendar.ics

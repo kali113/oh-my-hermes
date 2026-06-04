@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily oh-hermes secretary routine run
+
+[Timer]
+OnCalendar=*-*-* 08:20
+Persistent=true
+RandomizedDelaySec=20m
+Unit=oh-hermes-routines.service
+
+[Install]
+WantedBy=timers.target

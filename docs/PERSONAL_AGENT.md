@@ -21,6 +21,8 @@ oh-hermes secretary inbox import ~/note.md
 oh-hermes secretary inbox list
 oh-hermes secretary inbox triage --id note --to task --due 2026-06-05
 oh-hermes secretary decision add --title "Use local-first reminders"
+oh-hermes secretary routine add --name "Morning review" --schedule daily
+oh-hermes secretary routine run daily
 oh-hermes secretary task add --title "Follow up on X" --due 2026-06-05 --priority high
 oh-hermes secretary task list
 oh-hermes secretary task done <task-id-prefix>
@@ -47,7 +49,8 @@ oh-hermes agent context-pack
 oh-hermes publish-check
 ```
 
-`secretary --install-timer` installs the daily briefing timer, the half-hourly reminder check, and hourly read-only agenda feed sync.
+`secretary --install-timer` installs the daily briefing timer, half-hourly reminder check, hourly read-only agenda feed sync, and daily routine runner.
+`secretary init` seeds a default daily review routine if none exists.
 
 ## Integration Boundary
 

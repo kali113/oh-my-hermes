@@ -11,12 +11,16 @@ secretary_slug() {
 secretary_init() {
   local dir
   dir="$(secretary_dir)"
-  run mkdir -p "$dir/inbox" "$dir/tasks" "$dir/briefings" "$dir/worklog" "$dir/decisions" "$dir/reminders" "$dir/integrations" "$dir/agenda/sources" "$dir/agenda/events" "$dir/agenda/feeds"
+  run mkdir -p "$dir/inbox" "$dir/tasks" "$dir/briefings" "$dir/worklog" "$dir/decisions" "$dir/reminders" "$dir/integrations" "$dir/agenda/sources" "$dir/agenda/events" "$dir/agenda/feeds" "$dir/routines" "$dir/routine-runs"
   if [[ ! -f "$dir/preferences.md" ]]; then
     run cp "$OH_ROOT/templates/secretary/preferences.md" "$dir/preferences.md"
   fi
   if [[ ! -f "$dir/rules.md" ]]; then
     run cp "$OH_ROOT/templates/secretary/rules.md" "$dir/rules.md"
+  fi
+  if [[ ! -f "$dir/routines/daily-review.md" && -f "$OH_ROOT/templates/secretary/routines/daily-review.md" ]]; then
+    run cp "$OH_ROOT/templates/secretary/routines/daily-review.md" "$dir/routines/daily-review.md"
+    chmod 600 "$dir/routines/daily-review.md" 2>/dev/null || true
   fi
   info "Secretary state is at $dir"
 }
@@ -830,6 +834,113 @@ secretary_worklog() {
   printf '%s\n' "$file"
 }
 
+secretary_routine_add() {
+  secretary_init >/dev/null
+  local name="" schedule="manual" body="" file
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --name) name="${2:-}"; [[ -n "$name" ]] || die "--name needs a value"; shift 2 ;;
+      --schedule) schedule="${2:-}"; [[ -n "$schedule" ]] || die "--schedule needs a value"; shift 2 ;;
+      --body) body="${2:-}"; shift 2 ;;
+      *) body="${body}${body:+ }$1"; shift ;;
+    esac
+  done
+  [[ -n "$name" ]] || die "Usage: oh-hermes secretary routine add --name NAME [--schedule daily|weekly|manual] [--body CHECKLIST]"
+  file="$(secretary_dir)/routines/$(secretary_slug "$name").md"
+  {
+    printf '# %s\n\n' "$name"
+    printf -- '- Created: `%s`\n' "$(date -Is)"
+    printf -- '- Schedule: `%s`\n' "$schedule"
+    printf -- '- Enabled: `1`\n\n'
+    printf '## Checklist\n\n'
+    if [[ -n "$body" ]]; then
+      printf '%s\n' "$body"
+    else
+      printf -- '- [ ] Review open tasks\n'
+      printf -- '- [ ] Review due reminders\n'
+      printf -- '- [ ] Review today agenda\n'
+      printf -- '- [ ] Capture follow-up tasks\n'
+    fi
+  } | write_private_report "$file"
+  printf '%s\n' "$file"
+}
+
+secretary_routine_list() {
+  secretary_init >/dev/null
+  local file schedule enabled
+  printf 'ID | Enabled | Schedule | Name\n'
+  printf -- '---|---|---|---\n'
+  while IFS= read -r file; do
+    schedule="$(secretary_task_field "$file" "Schedule")"
+    enabled="$(secretary_task_field "$file" "Enabled")"
+    printf '%s | %s | %s | %s\n' "$(basename "$file" .md)" "${enabled:-1}" "${schedule:-manual}" "$(sed -n '1s/^# //p' "$file")"
+  done < <(find "$(secretary_dir)/routines" -type f -name '*.md' 2>/dev/null | sort)
+}
+
+secretary_routine_find() {
+  local needle="$1" file matches=()
+  [[ -n "$needle" ]] || die "Routine id/name is required"
+  while IFS= read -r file; do
+    if [[ "$(basename "$file" .md)" == "$needle"* ]] || grep -qi "^# .*${needle}" "$file"; then
+      matches+=("$file")
+    fi
+  done < <(find "$(secretary_dir)/routines" -type f -name '*.md' 2>/dev/null | sort)
+  [[ "${#matches[@]}" -gt 0 ]] || die "No routine matched: $needle"
+  [[ "${#matches[@]}" -eq 1 ]] || die "Multiple routines matched: $needle"
+  printf '%s\n' "${matches[0]}"
+}
+
+secretary_routine_run_one() {
+  local file="$1" name run_report
+  name="$(sed -n '1s/^# //p' "$file")"
+  run_report="$(secretary_dir)/routine-runs/$(ts)-$(secretary_slug "$name").md"
+  {
+    printf '# Routine Run: %s\n\n' "$name"
+    printf -- '- Ran: `%s`\n'
+    printf -- '- Source: `%s`\n\n' "$(date -Is)" "$(basename "$file")"
+    sed -n '/^## Checklist/,$p' "$file"
+    printf '\n## Context Snapshot\n\n'
+    printf '### Open Tasks\n\n'
+    secretary_task_list | tail -n +3 | head -20 | sed 's/^/- /'
+    printf '\n### Due Tasks\n\n'
+    secretary_task_due | sed 's/^/- /' || true
+    printf '\n### Today Agenda\n\n'
+    secretary_agenda_today | sed 's/^/- /' || true
+  } | write_private_report "$run_report"
+  printf '%s\n' "$run_report"
+}
+
+secretary_routine_run() {
+  secretary_init >/dev/null
+  local target="${1:-daily}" file schedule enabled count=0
+  if [[ "$target" != "daily" && "$target" != "weekly" && "$target" != "all" ]]; then
+    file="$(secretary_routine_find "$target")"
+    secretary_routine_run_one "$file"
+    return 0
+  fi
+  for file in "$(secretary_dir)"/routines/*.md; do
+    [[ -f "$file" ]] || continue
+    schedule="$(secretary_task_field "$file" "Schedule")"
+    enabled="$(secretary_task_field "$file" "Enabled")"
+    [[ "${enabled:-1}" == "1" ]] || continue
+    [[ "$target" == "all" || "${schedule:-manual}" == "$target" ]] || continue
+    secretary_routine_run_one "$file"
+    count=$((count + 1))
+  done
+  [[ "$count" -gt 0 ]] || printf 'No %s routines to run.\n' "$target"
+}
+
+secretary_routine() {
+  local sub="${1:-list}"
+  shift || true
+  case "$sub" in
+    add) secretary_routine_add "$@" ;;
+    list) secretary_routine_list "$@" ;;
+    run) secretary_routine_run "${1:-daily}" ;;
+    *) die "Unknown secretary routine command: $sub" ;;
+  esac
+}
+
 secretary_status() {
   secretary_init >/dev/null
   local dir
@@ -843,6 +954,8 @@ secretary_status() {
   printf 'briefings=%s\n' "$(find "$dir/briefings" -type f -name '*.md' 2>/dev/null | wc -l)"
   printf 'worklog=%s\n' "$(find "$dir/worklog" -type f -name '*.md' 2>/dev/null | wc -l)"
   printf 'decisions=%s\n' "$(find "$dir/decisions" -type f -name '*.md' 2>/dev/null | wc -l)"
+  printf 'routines=%s\n' "$(find "$dir/routines" -type f -name '*.md' 2>/dev/null | wc -l)"
+  printf 'routine_runs=%s\n' "$(find "$dir/routine-runs" -type f -name '*.md' 2>/dev/null | wc -l)"
   printf 'integrations=%s\n' "$(find "$dir/integrations" -type f -name '*.md' 2>/dev/null | wc -l)"
   printf 'agenda_imports=%s\n' "$(find "$dir/agenda/events" -type f -name '*.md' 2>/dev/null | wc -l)"
   printf 'agenda_feeds=%s\n' "$(find "$dir/agenda/feeds" -type f -name '*.env' 2>/dev/null | wc -l)"
@@ -860,10 +973,13 @@ install_secretary_timer() {
   run cp "$OH_ROOT/systemd/user/oh-hermes-reminders.timer" "$user_dir/"
   run cp "$OH_ROOT/systemd/user/oh-hermes-agenda-sync.service" "$user_dir/"
   run cp "$OH_ROOT/systemd/user/oh-hermes-agenda-sync.timer" "$user_dir/"
+  run cp "$OH_ROOT/systemd/user/oh-hermes-routines.service" "$user_dir/"
+  run cp "$OH_ROOT/systemd/user/oh-hermes-routines.timer" "$user_dir/"
   run systemctl --user daemon-reload
   run systemctl --user enable --now oh-hermes-secretary.timer
   run systemctl --user enable --now oh-hermes-reminders.timer
   run systemctl --user enable --now oh-hermes-agenda-sync.timer
+  run systemctl --user enable --now oh-hermes-routines.timer
 }
 
 remove_secretary_timer() {
@@ -873,6 +989,7 @@ remove_secretary_timer() {
   run systemctl --user disable --now oh-hermes-secretary.timer || true
   run systemctl --user disable --now oh-hermes-reminders.timer || true
   run systemctl --user disable --now oh-hermes-agenda-sync.timer || true
-  run rm -f "$user_dir/oh-hermes-secretary.service" "$user_dir/oh-hermes-secretary.timer" "$user_dir/oh-hermes-reminders.service" "$user_dir/oh-hermes-reminders.timer" "$user_dir/oh-hermes-agenda-sync.service" "$user_dir/oh-hermes-agenda-sync.timer"
+  run systemctl --user disable --now oh-hermes-routines.timer || true
+  run rm -f "$user_dir/oh-hermes-secretary.service" "$user_dir/oh-hermes-secretary.timer" "$user_dir/oh-hermes-reminders.service" "$user_dir/oh-hermes-reminders.timer" "$user_dir/oh-hermes-agenda-sync.service" "$user_dir/oh-hermes-agenda-sync.timer" "$user_dir/oh-hermes-routines.service" "$user_dir/oh-hermes-routines.timer"
   run systemctl --user daemon-reload
 }
