@@ -38,6 +38,10 @@ oh-hermes self-review
 oh-hermes evolve-skill oh-auto-improve --dry-run
 oh-hermes god-mode --once
 oh-hermes god-mode --install-timer
+oh-hermes secretary task add --title "Follow up" --due 2026-06-05
+oh-hermes secretary task list
+oh-hermes secretary reminders
+oh-hermes secretary integrations status
 oh-hermes secretary brief
 oh-hermes secretary --install-timer
 oh-hermes auto-improve --install-timer

@@ -1,0 +1,12 @@
+[Unit]
+Description=Half-hourly oh-hermes secretary reminder check
+
+[Timer]
+OnBootSec=5m
+OnUnitActiveSec=30m
+Persistent=true
+RandomizedDelaySec=5m
+Unit=oh-hermes-reminders.service
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,7 @@
+[Unit]
+Description=Check oh-hermes secretary reminders
+Documentation=https://github.com/NousResearch/hermes-agent
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/oh-hermes secretary reminders

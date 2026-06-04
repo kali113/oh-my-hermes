@@ -39,7 +39,7 @@ Usage:
   oh-hermes self-review
   oh-hermes evolve-skill <skill-name> [--dry-run|--run] [--iterations N]
   oh-hermes god-mode [--once|--install-timer|--remove-timer|--status]
-  oh-hermes secretary init|brief|capture|worklog|status|--install-timer|--remove-timer
+  oh-hermes secretary init|brief|capture|task|reminders|integrations|worklog|status|--install-timer|--remove-timer
   oh-hermes redact-check [path]
   oh-hermes test
 EOF
@@ -154,6 +154,9 @@ cmd_secretary() {
     init) secretary_init "$@" ;;
     brief) secretary_brief "$@" ;;
     capture) secretary_capture "$@" ;;
+    task) secretary_task "$@" ;;
+    reminders) secretary_reminders "$@" ;;
+    integrations) secretary_integrations "$@" ;;
     worklog) secretary_worklog "$@" ;;
     status|"") secretary_status "$@" ;;
     --install-timer) install_secretary_timer ;;
@@ -170,6 +173,10 @@ cmd_test() {
   done < <(find "$OH_ROOT" -type f \( -name '*.sh' -o -path "$OH_ROOT/bin/oh-hermes" \) -not -path '*/vendor/*')
   info "Running redaction check"
   redact_check "$OH_ROOT" || failed=1
+  info "Running smoke tests"
+  while IFS= read -r file; do
+    bash "$file" || failed=1
+  done < <(find "$OH_ROOT/tests" -type f -name '*_test.sh' 2>/dev/null | sort)
   [[ "$failed" == "0" ]] || die "Tests failed"
   info "Tests passed"
 }

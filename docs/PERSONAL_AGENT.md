@@ -17,12 +17,21 @@ It does not improve just because time passes. It improves when real workflows cr
 
 ```bash
 oh-hermes secretary init
+oh-hermes secretary task add --title "Follow up on X" --due 2026-06-05 --priority high
+oh-hermes secretary task list
+oh-hermes secretary task done <task-id-prefix>
+oh-hermes secretary reminders
+oh-hermes secretary integrations init
+oh-hermes secretary integrations status
+oh-hermes secretary integrations plan
 oh-hermes secretary capture --kind tasks --title "Follow up on X" --body "Context and due date"
 oh-hermes secretary worklog "Project name" "Goal for this work session"
 oh-hermes secretary brief
 oh-hermes secretary --install-timer
 oh-hermes secretary status
 ```
+
+`secretary --install-timer` installs both the daily briefing timer and the half-hourly reminder check.
 
 ## Integration Boundary
 
@@ -33,3 +42,5 @@ Email, calendar, contacts, chat, and notifications are intentionally opt-in. Add
 - what the agent may do without asking
 - what always needs confirmation
 - where secrets live outside the repo
+
+The integration policy files live under `~/.oh-hermes/secretary/integrations`. They are private state, not repo content.
