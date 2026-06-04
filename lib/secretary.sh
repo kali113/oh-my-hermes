@@ -67,6 +67,154 @@ secretary_capture() {
   printf '%s\n' "$file"
 }
 
+secretary_note_find() {
+  local kind="$1" needle="$2" dir file matches=()
+  dir="$(secretary_dir)/$kind"
+  [[ -n "$needle" ]] || die "$kind id/title prefix is required"
+  while IFS= read -r file; do
+    if [[ "$(basename "$file")" == "$needle"* ]] || grep -qi "^# .*${needle}" "$file"; then
+      matches+=("$file")
+    fi
+  done < <(find "$dir" -type f -name '*.md' 2>/dev/null | sort)
+  [[ "${#matches[@]}" -gt 0 ]] || die "No $kind item matched: $needle"
+  [[ "${#matches[@]}" -eq 1 ]] || die "Multiple $kind items matched: $needle"
+  printf '%s\n' "${matches[0]}"
+}
+
+secretary_inbox_import() {
+  secretary_init >/dev/null
+  local src="${1:-}" title="" file
+  shift || true
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --title) title="${2:-}"; [[ -n "$title" ]] || die "--title needs a value"; shift 2 ;;
+      *) die "Unknown inbox import option: $1" ;;
+    esac
+  done
+  [[ -n "$src" ]] || die "Usage: oh-hermes secretary inbox import <file> [--title TITLE]"
+  [[ -f "$src" ]] || die "Inbox source is not a file: $src"
+  [[ -n "$title" ]] || title="$(basename "$src")"
+  file="$(secretary_dir)/inbox/$(ts)-$(secretary_slug "$title" | cut -c1-48).md"
+  {
+    printf '# %s\n\n' "$title"
+    printf -- '- Imported: `%s`\n' "$(date -Is)"
+    printf -- '- Source: `%s`\n\n' "$(basename "$src")"
+    printf '## Content\n\n'
+    sed -n '1,240p' "$src"
+  } | write_private_report "$file"
+  printf '%s\n' "$file"
+}
+
+secretary_inbox_list() {
+  secretary_init >/dev/null
+  local file
+  printf 'ID | Title\n'
+  printf -- '---|---\n'
+  while IFS= read -r file; do
+    printf '%s | %s\n' "$(basename "$file" .md)" "$(sed -n '1s/^# //p' "$file")"
+  done < <(find "$(secretary_dir)/inbox" -type f -name '*.md' 2>/dev/null | sort)
+}
+
+secretary_inbox_show() {
+  local file
+  file="$(secretary_note_find inbox "${1:-}")"
+  sed -n '1,220p' "$file"
+}
+
+secretary_decision_add() {
+  secretary_init >/dev/null
+  local title="" body="" file
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --title) title="${2:-}"; [[ -n "$title" ]] || die "--title needs a value"; shift 2 ;;
+      --body) body="${2:-}"; shift 2 ;;
+      *) body="${body}${body:+ }$1"; shift ;;
+    esac
+  done
+  [[ -n "$title" ]] || die "Usage: oh-hermes secretary decision add --title TITLE [--body BODY]"
+  file="$(secretary_dir)/decisions/$(ts)-$(secretary_slug "$title" | cut -c1-48).md"
+  {
+    printf '# %s\n\n' "$title"
+    printf -- '- Decided: `%s`\n\n' "$(date -Is)"
+    printf '## Decision\n\n%s\n' "${body:-No detail captured yet.}"
+  } | write_private_report "$file"
+  printf '%s\n' "$file"
+}
+
+secretary_decision_list() {
+  secretary_init >/dev/null
+  local file
+  printf 'ID | Title\n'
+  printf -- '---|---\n'
+  while IFS= read -r file; do
+    printf '%s | %s\n' "$(basename "$file" .md)" "$(sed -n '1s/^# //p' "$file")"
+  done < <(find "$(secretary_dir)/decisions" -type f -name '*.md' 2>/dev/null | sort)
+}
+
+secretary_decision_show() {
+  local file
+  file="$(secretary_note_find decisions "${1:-}")"
+  sed -n '1,220p' "$file"
+}
+
+secretary_decision() {
+  local sub="${1:-list}"
+  shift || true
+  case "$sub" in
+    add) secretary_decision_add "$@" ;;
+    list) secretary_decision_list "$@" ;;
+    show) secretary_decision_show "$@" ;;
+    *) die "Unknown secretary decision command: $sub" ;;
+  esac
+}
+
+secretary_inbox_triage() {
+  secretary_init >/dev/null
+  local id="" to="" title="" due="" priority="normal" project="inbox" file body out
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --id) id="${2:-}"; [[ -n "$id" ]] || die "--id needs a value"; shift 2 ;;
+      --to) to="${2:-}"; [[ -n "$to" ]] || die "--to needs a value"; shift 2 ;;
+      --title) title="${2:-}"; [[ -n "$title" ]] || die "--title needs a value"; shift 2 ;;
+      --due) due="${2:-}"; [[ -n "$due" ]] || die "--due needs a value"; shift 2 ;;
+      --priority) priority="${2:-}"; [[ -n "$priority" ]] || die "--priority needs a value"; shift 2 ;;
+      --project) project="${2:-}"; [[ -n "$project" ]] || die "--project needs a value"; shift 2 ;;
+      *) die "Unknown inbox triage option: $1" ;;
+    esac
+  done
+  [[ -n "$id" && -n "$to" ]] || die "Usage: oh-hermes secretary inbox triage --id ID --to task|decision|worklog [--title TITLE]"
+  file="$(secretary_note_find inbox "$id")"
+  [[ -n "$title" ]] || title="$(sed -n '1s/^# //p' "$file")"
+  body="$(sed -n '/^## Content/,$p' "$file" | tail -n +3)"
+  case "$to" in
+    task)
+      if [[ -n "$due" ]]; then
+        out="$(secretary_task_add --title "$title" --body "$body" --due "$due" --priority "$priority" --project "$project")"
+      else
+        out="$(secretary_task_add --title "$title" --body "$body" --priority "$priority" --project "$project")"
+      fi
+      ;;
+    decision) out="$(secretary_decision_add --title "$title" --body "$body")" ;;
+    worklog) out="$(secretary_worklog "$title" "$body")" ;;
+    *) die "--to must be task, decision, or worklog" ;;
+  esac
+  mkdir -p "$(secretary_dir)/inbox/triaged"
+  mv "$file" "$(secretary_dir)/inbox/triaged/$(basename "$file")"
+  printf '%s\n' "$out"
+}
+
+secretary_inbox() {
+  local sub="${1:-list}"
+  shift || true
+  case "$sub" in
+    import) secretary_inbox_import "$@" ;;
+    list) secretary_inbox_list "$@" ;;
+    show) secretary_inbox_show "$@" ;;
+    triage) secretary_inbox_triage "$@" ;;
+    *) die "Unknown secretary inbox command: $sub" ;;
+  esac
+}
+
 secretary_task_field() {
   local file="$1" field="$2"
   awk -v field="$field" '
@@ -652,6 +800,11 @@ secretary_brief() {
       printf -- '- `%s` ' "$(basename "$log")"
       sed -n '1p' "$log" 2>/dev/null | sed 's/^# //'
     done
+    printf '\n## Recent Decisions\n\n'
+    find "$dir/decisions" -type f -name '*.md' -mtime -30 -print 2>/dev/null | sort | tail -20 | while IFS= read -r decision; do
+      printf -- '- `%s` ' "$(basename "$decision")"
+      sed -n '1p' "$decision" 2>/dev/null | sed 's/^# //'
+    done
     printf '\n## Agent Health\n\n```text\n'
     god_mode_health 2>&1 || true
     printf '\n```\n\n## Next Actions\n\n'
@@ -683,11 +836,13 @@ secretary_status() {
   dir="$(secretary_dir)"
   printf 'secretary_dir=%s\n' "$dir"
   printf 'inbox=%s\n' "$(find "$dir/inbox" -type f -name '*.md' 2>/dev/null | wc -l)"
+  printf 'triaged_inbox=%s\n' "$(find "$dir/inbox/triaged" -type f -name '*.md' 2>/dev/null | wc -l)"
   printf 'tasks=%s\n' "$(find "$dir/tasks" -type f -name '*.md' 2>/dev/null | wc -l)"
   printf 'open_tasks=%s\n' "$(secretary_task_list 2>/dev/null | tail -n +3 | wc -l)"
   printf 'due_tasks=%s\n' "$(secretary_task_due 2>/dev/null | wc -l)"
   printf 'briefings=%s\n' "$(find "$dir/briefings" -type f -name '*.md' 2>/dev/null | wc -l)"
   printf 'worklog=%s\n' "$(find "$dir/worklog" -type f -name '*.md' 2>/dev/null | wc -l)"
+  printf 'decisions=%s\n' "$(find "$dir/decisions" -type f -name '*.md' 2>/dev/null | wc -l)"
   printf 'integrations=%s\n' "$(find "$dir/integrations" -type f -name '*.md' 2>/dev/null | wc -l)"
   printf 'agenda_imports=%s\n' "$(find "$dir/agenda/events" -type f -name '*.md' 2>/dev/null | wc -l)"
   printf 'agenda_feeds=%s\n' "$(find "$dir/agenda/feeds" -type f -name '*.env' 2>/dev/null | wc -l)"

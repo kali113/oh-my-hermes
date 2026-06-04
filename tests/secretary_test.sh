@@ -9,6 +9,7 @@ trap 'rm -rf "$STATE"' EXIT
 export OH_HERMES_STATE="$STATE"
 
 agenda_file="$STATE/sample.ics"
+inbox_file="$STATE/note.md"
 cat > "$agenda_file" <<'ICS'
 BEGIN:VCALENDAR
 BEGIN:VEVENT
@@ -20,9 +21,25 @@ LOCATION:Local
 END:VEVENT
 END:VCALENDAR
 ICS
+cat > "$inbox_file" <<'MD'
+Follow up with local context.
+This should become a task.
+MD
 
 task_file="$("$ROOT/bin/oh-hermes" secretary task add --title "Test due task" --due 2000-01-01 --priority high --project smoke --body "verify task lifecycle")"
 [[ -f "$task_file" ]]
+inbox_item="$("$ROOT/bin/oh-hermes" secretary inbox import "$inbox_file" --title "Inbox smoke")"
+[[ -f "$inbox_item" ]]
+inbox_list="$("$ROOT/bin/oh-hermes" secretary inbox list)"
+grep -q "Inbox smoke" <<< "$inbox_list"
+triaged_task="$("$ROOT/bin/oh-hermes" secretary inbox triage --id "$(basename "$inbox_item" .md)" --to task --due 2000-01-02)"
+[[ -f "$triaged_task" ]]
+decision_file="$("$ROOT/bin/oh-hermes" secretary decision add --title "Smoke decision" --body "Use private decision log")"
+[[ -f "$decision_file" ]]
+decision_list="$("$ROOT/bin/oh-hermes" secretary decision list)"
+grep -q "Smoke decision" <<< "$decision_list"
+decision_show="$("$ROOT/bin/oh-hermes" secretary decision show "$(basename "$decision_file" .md)")"
+grep -q "Use private decision log" <<< "$decision_show"
 
 task_list="$("$ROOT/bin/oh-hermes" secretary task list)"
 grep -q "Test due task" <<< "$task_list"

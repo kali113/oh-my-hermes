@@ -17,6 +17,10 @@ It does not improve just because time passes. It improves when real workflows cr
 
 ```bash
 oh-hermes secretary init
+oh-hermes secretary inbox import ~/note.md
+oh-hermes secretary inbox list
+oh-hermes secretary inbox triage --id note --to task --due 2026-06-05
+oh-hermes secretary decision add --title "Use local-first reminders"
 oh-hermes secretary task add --title "Follow up on X" --due 2026-06-05 --priority high
 oh-hermes secretary task list
 oh-hermes secretary task done <task-id-prefix>
@@ -58,3 +62,5 @@ Email, calendar, contacts, chat, and notifications are intentionally opt-in. Add
 The integration policy files live under `~/.oh-hermes/secretary/integrations`. They are private state, not repo content.
 
 Agenda imports and feed definitions are read-only private state under `~/.oh-hermes/secretary/agenda`. Import `.ics`, `.md`, or `.txt` exports there instead of committing calendar data.
+
+Inbox imports are private intake items under `~/.oh-hermes/secretary/inbox`. Triage moves them to `inbox/triaged` and creates a task, decision, or worklog.

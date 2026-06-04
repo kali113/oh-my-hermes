@@ -43,6 +43,8 @@ oh-hermes evolve-skill oh-auto-improve --dry-run
 oh-hermes god-mode --once
 oh-hermes god-mode --install-timer
 oh-hermes secretary task add --title "Follow up" --due 2026-06-05
+oh-hermes secretary inbox import ~/note.md
+oh-hermes secretary inbox triage --id note --to task --due 2026-06-05
 oh-hermes secretary task list
 oh-hermes secretary agenda import ~/calendar.ics
 oh-hermes secretary agenda feed add --name local-calendar --source ~/calendar.ics
