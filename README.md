@@ -24,6 +24,7 @@ cd /home/arch/oh-hermes
 - GBrain as the default durable brain layer.
 - AnySearch as the default current-search skill.
 - Optional MemOS and Hermes self-evolution lab modules.
+- Durable `systemd --user` MemOS viewer service for local memory inspection.
 - Weekly `systemd --user` auto-improvement reports.
 - Redaction checks before publishing.
 
@@ -42,12 +43,12 @@ oh-hermes ui --background
 
 `self-review` asks Hermes to critique this setup and stores the answer under `~/.oh-hermes/reports`.
 `evolve-skill` wraps `hermes-agent-self-evolution`; default mode is validation-only. Use `--run` only when you want to spend model calls generating a reviewed proposal artifact.
-`god-mode` runs the unattended cycle: backups, service repair, diagnostics, self-review, skill evolution, safe auto-apply, redaction checks, and local commits.
+`god-mode` runs the unattended cycle: backups, service repair, durable service setup, diagnostics, self-review, skill evolution, safe auto-apply, redaction checks, and local commits.
 See `docs/SELF_IMPROVEMENT.md` for the latest guarded evolution result.
 
 ## Local Services
 
-After `oh-hermes ui --background`:
+After `oh-hermes ui --background` or `oh-hermes god-mode --install-timer`:
 
 - Workspace: `http://127.0.0.1:3000`
 - Hermes dashboard: `http://127.0.0.1:9119`

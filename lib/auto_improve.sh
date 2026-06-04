@@ -208,7 +208,8 @@ god_mode_ensure_services() {
   module_enable workspace
   module_enable self-evolution
   if [[ "${OH_HERMES_GOD_ENABLE_MEMOS:-1}" == "1" ]]; then
-    module_enable memos
+    module_enable memos </dev/null >"$OH_LOG_DIR/memos-install.log" 2>&1 || cat "$OH_LOG_DIR/memos-install.log"
+    install_memos_service || true
   fi
   # shellcheck source=../modules/workspace.sh
   source "$OH_ROOT/modules/workspace.sh"
@@ -216,19 +217,20 @@ god_mode_ensure_services() {
 }
 
 god_mode_health() {
+  local health_timeout="${OH_HERMES_HEALTH_TIMEOUT:-20}"
   printf 'hermes_config='
   hermes config check >/dev/null && printf 'ok\n' || printf 'failed\n'
   printf 'workspace='
-  curl -fsS http://127.0.0.1:3000/ >/dev/null && printf 'ok\n' || printf 'failed\n'
+  curl -fsS --max-time "$health_timeout" http://127.0.0.1:3000/ >/dev/null && printf 'ok\n' || printf 'failed\n'
   printf 'dashboard='
-  curl -fsS http://127.0.0.1:9119/ >/dev/null && printf 'ok\n' || printf 'failed\n'
+  curl -fsS --max-time "$health_timeout" http://127.0.0.1:9119/ >/dev/null && printf 'ok\n' || printf 'failed\n'
   printf 'memos='
-  curl -fsS http://127.0.0.1:18800/ >/dev/null && printf 'ok\n' || printf 'failed\n'
+  curl -fsS --max-time "$health_timeout" http://127.0.0.1:18800/ >/dev/null && printf 'ok\n' || printf 'failed\n'
   printf 'api='
   local key
   key="$(awk -F= '/^API_SERVER_KEY=/ {print substr($0, index($0,"=")+1); exit}' "$(hermes config env-path)" 2>/dev/null || true)"
   if [[ -n "$key" ]]; then
-    curl -fsS -H "Authorization: Bearer $key" http://127.0.0.1:8642/health >/dev/null && printf 'ok\n' || printf 'failed\n'
+    curl -fsS --max-time "$health_timeout" -H "Authorization: Bearer $key" http://127.0.0.1:8642/health >/dev/null && printf 'ok\n' || printf 'failed\n'
   else
     printf 'missing-key\n'
   fi
@@ -286,6 +288,9 @@ install_god_mode_timer() {
   local user_dir="$HOME/.config/systemd/user"
   info "Installing oh-hermes god-mode timer"
   run mkdir -p "$user_dir"
+  if [[ -f "$OH_ROOT/systemd/user/oh-hermes-memos.service" ]]; then
+    install_memos_service || true
+  fi
   run cp "$OH_ROOT/systemd/user/oh-hermes-god-mode.service" "$user_dir/"
   run cp "$OH_ROOT/systemd/user/oh-hermes-god-mode.timer" "$user_dir/"
   run systemctl --user daemon-reload
@@ -299,6 +304,16 @@ remove_god_mode_timer() {
   run systemctl --user disable --now oh-hermes-god-mode.timer || true
   run rm -f "$user_dir/oh-hermes-god-mode.service" "$user_dir/oh-hermes-god-mode.timer"
   run systemctl --user daemon-reload
+}
+
+install_memos_service() {
+  need systemctl
+  local user_dir="$HOME/.config/systemd/user"
+  [[ -d "$HOME/.hermes/memos-plugin" ]] || return 0
+  run mkdir -p "$user_dir"
+  run cp "$OH_ROOT/systemd/user/oh-hermes-memos.service" "$user_dir/"
+  run systemctl --user daemon-reload
+  run systemctl --user enable --now oh-hermes-memos.service
 }
 
 install_auto_improve_timer() {

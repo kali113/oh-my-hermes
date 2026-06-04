@@ -1,0 +1,13 @@
+[Unit]
+Description=oh-hermes MemOS Memory Viewer
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/.hermes/memos-plugin
+ExecStart=/usr/bin/bash -lc 'set -euo pipefail; node_bin="$(cat .memos-node-bin 2>/dev/null || command -v node)"; if [[ -f dist/bridge.cjs ]]; then exec "$node_bin" dist/bridge.cjs --agent=hermes --daemon; fi; exec "$node_bin" node_modules/tsx/dist/cli.mjs bridge.cts --agent=hermes --daemon'
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

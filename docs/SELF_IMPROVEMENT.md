@@ -14,7 +14,7 @@
 - backs up Hermes config
 - reapplies core Hermes defaults
 - refreshes default modules
-- starts Workspace/dashboard services
+- starts Workspace, dashboard, and MemOS viewer services
 - checks Workspace, dashboard, MemOS, and Hermes API health
 - writes redacted private diagnostics
 - runs bounded Hermes self-review
@@ -23,6 +23,7 @@
 - commits passing repo changes locally when `OH_HERMES_GOD_COMMIT=1`
 
 The timer installed by `oh-hermes god-mode --install-timer` runs hourly with randomized delay.
+It also installs `oh-hermes-memos.service` so the MemOS viewer survives outside the installer process.
 
 ## Current Run
 
