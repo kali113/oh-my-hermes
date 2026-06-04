@@ -29,6 +29,8 @@ oh-hermes secretary worklog "Project name" "Goal for this work session"
 oh-hermes secretary brief
 oh-hermes secretary --install-timer
 oh-hermes secretary status
+oh-hermes agent status
+oh-hermes agent report
 ```
 
 `secretary --install-timer` installs both the daily briefing timer and the half-hourly reminder check.

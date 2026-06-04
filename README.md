@@ -33,6 +33,8 @@ cd /home/arch/oh-hermes
 
 ```bash
 oh-hermes doctor
+oh-hermes agent status
+oh-hermes agent report
 oh-hermes auto-improve
 oh-hermes self-review
 oh-hermes evolve-skill oh-auto-improve --dry-run
@@ -51,6 +53,7 @@ oh-hermes ui --background
 `self-review` asks Hermes to critique this setup and stores the answer under `~/.oh-hermes/reports`.
 `evolve-skill` wraps `hermes-agent-self-evolution`; default mode is validation-only. Use `--run` only when you want to spend model calls generating a reviewed proposal artifact.
 `god-mode` runs the unattended cycle: backups, service repair, durable service setup, diagnostics, self-review, skill evolution, safe auto-apply, redaction checks, and local commits.
+`agent status` is the quick command-center view for health, timers, services, tasks, git state, and latest reports.
 `secretary` manages your private personal-agent layer under `~/.oh-hermes/secretary`: inbox, tasks, decisions, work logs, and daily briefings.
 See `docs/SELF_IMPROVEMENT.md` for the latest guarded evolution result.
 See `docs/PERSONAL_AGENT.md` for the secretary/worker operating model.

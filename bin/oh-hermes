@@ -21,6 +21,8 @@ source "$OH_ROOT/lib/modules.sh"
 source "$OH_ROOT/lib/auto_improve.sh"
 # shellcheck source=../lib/secretary.sh
 source "$OH_ROOT/lib/secretary.sh"
+# shellcheck source=../lib/agent.sh
+source "$OH_ROOT/lib/agent.sh"
 
 usage() {
   cat <<'EOF'
@@ -39,6 +41,7 @@ Usage:
   oh-hermes self-review
   oh-hermes evolve-skill <skill-name> [--dry-run|--run] [--iterations N]
   oh-hermes god-mode [--once|--install-timer|--remove-timer|--status]
+  oh-hermes agent status|report
   oh-hermes secretary init|brief|capture|task|reminders|integrations|worklog|status|--install-timer|--remove-timer
   oh-hermes redact-check [path]
   oh-hermes test
@@ -201,6 +204,7 @@ main() {
     self-review) self_review "$@" ;;
     evolve-skill) evolve_skill "$@" ;;
     god-mode) god_mode "$@" ;;
+    agent) agent_cmd "$@" ;;
     secretary) cmd_secretary "$@" ;;
     redact-check) redact_check "${1:-$OH_ROOT}" ;;
     test) cmd_test ;;

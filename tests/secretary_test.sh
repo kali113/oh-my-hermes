@@ -28,3 +28,6 @@ grep -vq "Test due task" <<< "$task_list_after"
 task_list_all="$("$ROOT/bin/oh-hermes" secretary task list --all)"
 grep -q "done" <<< "$task_list_all"
 "$ROOT/bin/oh-hermes" secretary brief >/dev/null
+agent_status="$("$ROOT/bin/oh-hermes" agent status)"
+grep -q "oh-hermes Agent Status" <<< "$agent_status"
+"$ROOT/bin/oh-hermes" agent report >/dev/null
