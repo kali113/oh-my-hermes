@@ -11,7 +11,7 @@ secretary_slug() {
 secretary_init() {
   local dir
   dir="$(secretary_dir)"
-  run mkdir -p "$dir/inbox" "$dir/tasks" "$dir/briefings" "$dir/worklog" "$dir/decisions" "$dir/reminders" "$dir/integrations" "$dir/agenda/sources" "$dir/agenda/events" "$dir/agenda/feeds" "$dir/routines" "$dir/routine-runs" "$dir/actions" "$dir/learning" "$dir/learning/reviews"
+  run mkdir -p "$dir/inbox" "$dir/tasks" "$dir/briefings" "$dir/worklog" "$dir/decisions" "$dir/reminders" "$dir/integrations" "$dir/agenda/sources" "$dir/agenda/events" "$dir/agenda/feeds" "$dir/routines" "$dir/routine-runs" "$dir/actions" "$dir/sessions" "$dir/learning" "$dir/learning/reviews"
   if [[ ! -f "$dir/preferences.md" ]]; then
     run cp "$OH_ROOT/templates/secretary/preferences.md" "$dir/preferences.md"
   fi
@@ -429,6 +429,125 @@ secretary_action_show() {
   sed -n '1,260p' "$file"
 }
 
+secretary_session_field() {
+  secretary_task_field "$@"
+}
+
+secretary_session_list() {
+  secretary_init >/dev/null
+  local all=0 file title status action started
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --all) all=1; shift ;;
+      *) die "Unknown session list option: $1" ;;
+    esac
+  done
+  printf 'ID | Status | Action | Started | Title\n'
+  printf -- '---|---|---|---|---\n'
+  while IFS= read -r file; do
+    status="$(secretary_session_field "$file" "Status")"
+    [[ "$all" == "1" || "${status:-active}" == "active" ]] || continue
+    title="$(sed -n '1s/^# //p' "$file" | sed 's/^Worker Session: //')"
+    action="$(secretary_session_field "$file" "Action")"
+    started="$(secretary_session_field "$file" "Started")"
+    printf '%s | %s | %s | %s | %s\n' "$(basename "$file" .md)" "${status:-active}" "${action:-unknown}" "${started:--}" "$title"
+  done < <(find "$(secretary_dir)/sessions" -type f -name '*.md' 2>/dev/null | sort)
+}
+
+secretary_session_find() {
+  local needle="$1" file matches=()
+  [[ -n "$needle" ]] || die "Session id/title prefix is required"
+  while IFS= read -r file; do
+    if [[ "$(basename "$file" .md)" == "$needle"* ]] || grep -qi "^# .*${needle}" "$file"; then
+      matches+=("$file")
+    fi
+  done < <(find "$(secretary_dir)/sessions" -type f -name '*.md' 2>/dev/null | sort)
+  [[ "${#matches[@]}" -gt 0 ]] || die "No session matched: $needle"
+  [[ "${#matches[@]}" -eq 1 ]] || die "Multiple sessions matched: $needle"
+  printf '%s\n' "${matches[0]}"
+}
+
+secretary_session_show() {
+  local file
+  file="$(secretary_session_find "${1:-}")"
+  sed -n '1,280p' "$file"
+}
+
+secretary_session_close_for_action() {
+  local action_id="$1" status="$2" note="${3:-}" file stamp
+  stamp="$(date -Is)"
+  while IFS= read -r file; do
+    [[ "$(secretary_session_field "$file" "Action")" == "$action_id" ]] || continue
+    [[ "$(secretary_session_field "$file" "Status")" == "active" ]] || continue
+    secretary_markdown_set_field "$file" "Status" "closed"
+    {
+      printf '\n'
+      printf -- '- `%s` `%s` %s\n' "$stamp" "$status" "${note:-No note.}"
+    } >> "$file"
+  done < <(find "$(secretary_dir)/sessions" -type f -name '*.md' 2>/dev/null | sort)
+}
+
+secretary_session() {
+  local sub="${1:-list}"
+  shift || true
+  case "$sub" in
+    list) secretary_session_list "$@" ;;
+    show) secretary_session_show "$@" ;;
+    *) die "Unknown secretary session command: $sub" ;;
+  esac
+}
+
+secretary_action_start() {
+  secretary_init >/dev/null
+  local id="${1:-}" note="${2:-Started worker session.}" file action_id title status approval risk type project session existing
+  file="$(secretary_action_find "$id")"
+  action_id="$(basename "$file" .md)"
+  title="$(sed -n '1s/^# //p' "$file")"
+  status="$(secretary_action_field "$file" "Status")"
+  approval="$(secretary_action_field "$file" "Requires Approval")"
+  risk="$(secretary_action_field "$file" "Risk")"
+  type="$(secretary_action_field "$file" "Type")"
+  project="$(secretary_action_field "$file" "Project")"
+  case "${status:-proposed}" in
+    approved|in_progress) ;;
+    proposed)
+      [[ "${approval:-1}" == "0" ]] || die "Action requires approval before start: $action_id"
+      ;;
+    done|rejected) die "Action is already closed: $action_id" ;;
+    *) die "Action cannot be started from status: ${status:-proposed}" ;;
+  esac
+  while IFS= read -r existing; do
+    [[ "$(secretary_session_field "$existing" "Action")" == "$action_id" ]] || continue
+    [[ "$(secretary_session_field "$existing" "Status")" == "active" ]] || continue
+    printf '%s\n' "$existing"
+    return 0
+  done < <(find "$(secretary_dir)/sessions" -type f -name '*.md' 2>/dev/null | sort)
+  session="$(secretary_dir)/sessions/$(ts)-$(secretary_slug "$title" | cut -c1-48).md"
+  {
+    printf '# Worker Session: %s\n\n' "$title"
+    printf -- '- Started: `%s`\n' "$(date -Is)"
+    printf -- '- Status: `active`\n'
+    printf -- '- Action: `%s`\n' "$action_id"
+    printf -- '- Type: `%s`\n' "${type:-local}"
+    printf -- '- Risk: `%s`\n' "${risk:-medium}"
+    printf -- '- Project: `%s`\n\n' "${project:-general}"
+    printf '## Start Note\n\n%s\n\n' "$note"
+    printf '## Proposed Work\n\n'
+    awk '
+      found && /^## / { exit }
+      found { print }
+      /^## Proposed Work/ { found = 1; next }
+    ' "$file"
+    printf '\n## Operating Rules\n\n'
+    sed -n '1,80p' "$(secretary_dir)/rules.md" 2>/dev/null || true
+    printf '\n## Active Lessons\n\n'
+    secretary_learn_list --status active | tail -n +3 | head -20 | sed 's/^/- /'
+    printf '\n## Work Notes\n\n'
+  } | write_private_report "$session"
+  secretary_action_set_status "$action_id" in_progress "Started worker session: $(basename "$session")" >/dev/null
+  printf '%s\n' "$session"
+}
+
 secretary_action_set_status() {
   local id="$1" status="$2" note="${3:-}" file tmp stamp title source
   file="$(secretary_action_find "$id")"
@@ -459,6 +578,7 @@ secretary_action_set_status() {
   } >> "$file"
   case "$status" in
     done|rejected)
+      secretary_session_close_for_action "$(basename "$file" .md)" "$status" "$note" >/dev/null || true
       source="action:$(basename "$file" .md)"
       secretary_learn_candidate "Action outcome: $title" "$source" "Status: $status"$'\n'"Note: ${note:-No note.}" medium >/dev/null || true
       ;;
@@ -475,6 +595,8 @@ secretary_action_plan() {
     printf -- '- Generated: `%s`\n\n' "$(date -Is)"
     printf '## Pending Actions\n\n'
     secretary_action_list | tail -n +3 | sed 's/^/- /'
+    printf '\n## Active Sessions\n\n'
+    secretary_session_list | tail -n +3 | sed 's/^/- /'
     printf '\n## Due Tasks\n\n'
     secretary_task_due | sed 's/^/- /' || true
     printf '\n## Inbox Waiting For Triage\n\n'
@@ -494,10 +616,12 @@ secretary_action() {
     add) secretary_action_add "$@" ;;
     list) secretary_action_list "$@" ;;
     show) secretary_action_show "$@" ;;
+    start) secretary_action_start "${1:-}" "${2:-Started worker session.}" ;;
     approve) secretary_action_set_status "${1:-}" approved "${2:-Approved by operator.}" ;;
     reject) secretary_action_set_status "${1:-}" rejected "${2:-Rejected by operator.}" ;;
     done) secretary_action_set_status "${1:-}" done "${2:-Completed by worker.}" ;;
     plan) secretary_action_plan "$@" ;;
+    sessions) secretary_session_list "$@" ;;
     *) die "Unknown secretary action command: $sub" ;;
   esac
 }
@@ -1134,6 +1258,8 @@ secretary_brief() {
     secretary_task_due | sed 's/^/- /' || true
     printf '\n## Worker Actions\n\n'
     secretary_action_list | tail -n +3 | head -20 | sed 's/^/- /'
+    printf '\n## Active Worker Sessions\n\n'
+    secretary_session_list | tail -n +3 | head -20 | sed 's/^/- /'
     printf '\n## Today Agenda\n\n'
     secretary_agenda_today | sed 's/^/- /' || true
     printf '\n## Recent Inbox\n\n'
@@ -1298,6 +1424,8 @@ secretary_status() {
   printf 'decisions=%s\n' "$(find "$dir/decisions" -type f -name '*.md' 2>/dev/null | wc -l)"
   printf 'actions=%s\n' "$(find "$dir/actions" -type f -name '*.md' 2>/dev/null | wc -l)"
   printf 'open_actions=%s\n' "$(secretary_action_list 2>/dev/null | tail -n +3 | wc -l)"
+  printf 'sessions=%s\n' "$(find "$dir/sessions" -type f -name '*.md' 2>/dev/null | wc -l)"
+  printf 'active_sessions=%s\n' "$(secretary_session_list 2>/dev/null | tail -n +3 | wc -l)"
   printf 'lessons=%s\n' "$(find "$dir/learning" -maxdepth 1 -type f -name '*.md' 2>/dev/null | wc -l)"
   printf 'candidate_lessons=%s\n' "$(secretary_learn_list --status candidate 2>/dev/null | tail -n +3 | wc -l)"
   printf 'learning_reviews=%s\n' "$(find "$dir/learning/reviews" -type f -name '*.md' 2>/dev/null | wc -l)"

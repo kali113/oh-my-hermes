@@ -67,6 +67,8 @@ agent_context_pack() {
     secretary_decision_list 2>&1 || true
     printf '\n## Worker Actions\n\n'
     secretary_action_list 2>&1 || true
+    printf '\n## Worker Sessions\n\n'
+    secretary_session_list 2>&1 || true
     printf '\n## Active Lessons\n\n'
     secretary_learn_list --status active 2>&1 || true
     printf '\n## Candidate Lessons\n\n'

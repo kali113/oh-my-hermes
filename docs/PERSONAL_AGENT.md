@@ -3,7 +3,7 @@
 `oh-hermes` now has two loops:
 
 1. God mode keeps the Hermes setup healthy and improves the setup itself.
-2. Secretary mode keeps a private operating layer for tasks, worker actions, reusable lessons, briefings, decisions, and work logs.
+2. Secretary mode keeps a private operating layer for tasks, worker actions, worker sessions, reusable lessons, briefings, decisions, and work logs.
 
 ## What Improves With Use
 
@@ -27,9 +27,12 @@ oh-hermes secretary decision add --title "Use local-first reminders"
 oh-hermes secretary action add --title "Draft follow-up" --type message --risk medium --requires-approval 1
 oh-hermes secretary action list
 oh-hermes secretary action approve <action-id-prefix>
+oh-hermes secretary action start <action-id-prefix>
 oh-hermes secretary action reject <action-id-prefix>
 oh-hermes secretary action done <action-id-prefix>
 oh-hermes secretary action plan
+oh-hermes secretary session list
+oh-hermes secretary session show <session-id-prefix>
 oh-hermes secretary learn add --title "Prefer local-first workflows" --body "Keep private state outside the repo."
 oh-hermes secretary learn list
 oh-hermes secretary learn show <lesson-id-prefix>
@@ -93,6 +96,17 @@ Worker actions are the approval boundary for autonomous work. They live under `~
 - `done`: completed work with a status-log note.
 
 Use `--requires-approval 1` for messages, account changes, external writes, purchases, destructive operations, and any task where leaking or changing private data would matter.
+
+## Worker Sessions
+
+Starting an approved action creates a worker session under `~/.oh-hermes/secretary/sessions` and moves the action to `in_progress`. A session captures the proposed work, operating rules, active lessons, and a place for work notes.
+
+- `action start`: create a focused active session from an approved action.
+- `session list`: show active worker sessions.
+- `session show`: inspect the context for a work session.
+- `action done` or `action reject`: closes active sessions for that action and creates a candidate lesson.
+
+This separates planning from execution: actions decide what may be done, sessions hold the working context while it is being done.
 
 ## Learning Loop
 
