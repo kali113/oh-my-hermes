@@ -112,6 +112,12 @@ grep -q "references missing action" "$(tail -n 1 "$strict_audit")"
 rm -f "$STATE/secretary/sessions/orphan.md"
 action_plan="$("$ROOT/bin/oh-hermes" secretary action plan)"
 [[ -f "$action_plan" ]]
+focus_file="$("$ROOT/bin/oh-hermes" secretary focus)"
+[[ -f "$focus_file" ]]
+grep -q "Secretary Focus Queue" "$focus_file"
+grep -q "Due And Overdue Tasks" "$focus_file"
+grep -q "Test due task" "$focus_file"
+grep -q "Stale smoke action" "$focus_file"
 lesson_file="$("$ROOT/bin/oh-hermes" secretary learn add --title "Smoke lesson" --body "Remember smoke-test preference" --source smoke --confidence high)"
 [[ -f "$lesson_file" ]]
 learn_list="$("$ROOT/bin/oh-hermes" secretary learn list)"

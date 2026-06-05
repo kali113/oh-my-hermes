@@ -1432,6 +1432,104 @@ secretary_brief() {
   printf '%s\n' "$report"
 }
 
+secretary_focus() {
+  secretary_init >/dev/null
+  local dir report today file title status due priority risk approval project action session_count section_count total=0
+  dir="$(secretary_dir)"
+  today="$(date +%F)"
+  report="$dir/briefings/focus-$today.md"
+  {
+    printf '# Secretary Focus Queue %s\n\n' "$today"
+    printf -- '- Generated: `%s`\n\n' "$(date -Is)"
+    printf '## Priority Lane\n\n'
+
+    section_count=0
+    while IFS= read -r file; do
+      status="$(secretary_session_field "$file" "Status")"
+      [[ "${status:-active}" == "active" ]] || continue
+      title="$(sed -n '1s/^# //p' "$file" | sed 's/^Worker Session: //')"
+      action="$(secretary_session_field "$file" "Action")"
+      printf -- '- Continue active worker session `%s` for action `%s`: %s\n' "$(basename "$file" .md)" "${action:-unknown}" "$title"
+      section_count=$((section_count + 1))
+      total=$((total + 1))
+    done < <(find "$dir/sessions" -type f -name '*.md' 2>/dev/null | sort)
+    [[ "$section_count" -gt 0 ]] || printf -- '- No active worker sessions.\n'
+
+    printf '\n## Due And Overdue Tasks\n\n'
+    section_count=0
+    while IFS= read -r file; do
+      status="$(secretary_task_status "$file")"
+      [[ "$status" != "done" ]] || continue
+      due="$(secretary_task_field "$file" "Due")"
+      [[ -n "$due" && ( "$due" == "$today" || "$due" < "$today" ) ]] || continue
+      title="$(sed -n '1s/^# //p' "$file")"
+      priority="$(secretary_task_field "$file" "Priority")"
+      project="$(secretary_task_field "$file" "Project")"
+      printf -- '- `%s` `%s` `%s` %s\n' "$due" "${priority:-normal}" "${project:-general}" "$title"
+      section_count=$((section_count + 1))
+      total=$((total + 1))
+    done < <(find "$dir/tasks" -type f -name '*.md' 2>/dev/null | sort)
+    [[ "$section_count" -gt 0 ]] || printf -- '- No due or overdue tasks.\n'
+
+    printf '\n## Approved Actions Ready To Start\n\n'
+    section_count=0
+    while IFS= read -r file; do
+      status="$(secretary_action_field "$file" "Status")"
+      [[ "$status" == "approved" ]] || continue
+      title="$(sed -n '1s/^# //p' "$file")"
+      risk="$(secretary_action_field "$file" "Risk")"
+      project="$(secretary_action_field "$file" "Project")"
+      printf -- '- `%s` `%s` %s\n' "${risk:-medium}" "${project:-general}" "$title"
+      section_count=$((section_count + 1))
+      total=$((total + 1))
+    done < <(find "$dir/actions" -type f -name '*.md' 2>/dev/null | sort)
+    [[ "$section_count" -gt 0 ]] || printf -- '- No approved actions waiting to start.\n'
+
+    printf '\n## Proposed Actions Needing Approval\n\n'
+    section_count=0
+    while IFS= read -r file; do
+      status="$(secretary_action_field "$file" "Status")"
+      approval="$(secretary_action_field "$file" "Requires Approval")"
+      [[ "${status:-proposed}" == "proposed" && "${approval:-1}" == "1" ]] || continue
+      title="$(sed -n '1s/^# //p' "$file")"
+      risk="$(secretary_action_field "$file" "Risk")"
+      project="$(secretary_action_field "$file" "Project")"
+      printf -- '- `%s` `%s` %s\n' "${risk:-medium}" "${project:-general}" "$title"
+      section_count=$((section_count + 1))
+      total=$((total + 1))
+    done < <(find "$dir/actions" -type f -name '*.md' 2>/dev/null | sort)
+    [[ "$section_count" -gt 0 ]] || printf -- '- No proposed actions waiting for approval.\n'
+
+    printf '\n## Inbox Waiting For Triage\n\n'
+    section_count=0
+    while IFS= read -r file; do
+      title="$(sed -n '1s/^# //p' "$file")"
+      printf -- '- `%s` %s\n' "$(basename "$file" .md)" "$title"
+      section_count=$((section_count + 1))
+      total=$((total + 1))
+    done < <(find "$dir/inbox" -maxdepth 1 -type f -name '*.md' 2>/dev/null | sort | tail -20)
+    [[ "$section_count" -gt 0 ]] || printf -- '- Inbox is clear.\n'
+
+    printf '\n## Learning Queue\n\n'
+    section_count=0
+    secretary_learn_list --status candidate | tail -n +3 | head -20 | while IFS= read -r lesson; do
+      [[ -n "$lesson" ]] || continue
+      printf -- '- %s\n' "$lesson"
+      section_count=$((section_count + 1))
+    done
+    [[ "$section_count" -gt 0 ]] || printf -- '- No candidate lessons waiting for review.\n'
+
+    printf '\n## Operating Guidance\n\n'
+    printf -- '- Work active sessions before starting new work.\n'
+    printf -- '- Due tasks beat speculative improvements.\n'
+    printf -- '- Start only approved actions, or actions with `Requires Approval` set to `0`.\n'
+    printf -- '- Turn repeated outcomes into promoted lessons only after review.\n'
+    printf '\n## Summary\n\n'
+    printf -- '- Focus items: `%s`\n' "$total"
+  } | write_private_report "$report"
+  printf '%s\n' "$report"
+}
+
 secretary_worklog() {
   local title="${1:-Work session}" file
   shift || true

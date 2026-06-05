@@ -44,7 +44,7 @@ Usage:
   oh-hermes evolve-skill <skill-name> [--dry-run|--run] [--iterations N]
   oh-hermes god-mode [--once|--install-timer|--remove-timer|--status]
   oh-hermes agent status|json|report|context-pack
-  oh-hermes secretary init|brief|capture|inbox|task|decision|action|session|learn|sweep|audit|routine|agenda|reminders|notify|integrations|worklog|status|--install-timer|--remove-timer
+  oh-hermes secretary init|brief|focus|capture|inbox|task|decision|action|session|learn|sweep|audit|routine|agenda|reminders|notify|integrations|worklog|status|--install-timer|--remove-timer
   oh-hermes publish-check
   oh-hermes publish-snapshot [--out-dir DIR] [--skip-check]
   oh-hermes redact-check [path]
@@ -160,6 +160,7 @@ cmd_secretary() {
   case "$sub" in
     init) secretary_init "$@" ;;
     brief) secretary_brief "$@" ;;
+    focus) secretary_focus "$@" ;;
     capture) secretary_capture "$@" ;;
     inbox) secretary_inbox "$@" ;;
     task) secretary_task "$@" ;;

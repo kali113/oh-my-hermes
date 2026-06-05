@@ -61,6 +61,7 @@ oh-hermes secretary integrations plan
 oh-hermes secretary capture --kind tasks --title "Follow up on X" --body "Context and due date"
 oh-hermes secretary worklog "Project name" "Goal for this work session"
 oh-hermes secretary brief
+oh-hermes secretary focus
 oh-hermes secretary --install-timer
 oh-hermes secretary status
 oh-hermes agent status
@@ -71,7 +72,7 @@ oh-hermes publish-check
 oh-hermes publish-snapshot --out-dir /tmp/oh-hermes-publish
 ```
 
-`secretary --install-timer` installs the daily briefing, worker action plan, learning review, maintenance sweep, and state audit timer, half-hourly reminder check, hourly read-only agenda feed sync, and daily routine runner.
+`secretary --install-timer` installs the daily briefing, focus queue, worker action plan, learning review, maintenance sweep, and state audit timer, half-hourly reminder check, hourly read-only agenda feed sync, and daily routine runner.
 `secretary init` seeds a default daily review routine if none exists.
 
 ## Integration Boundary
@@ -111,6 +112,12 @@ Starting an approved action creates a worker session under `~/.oh-hermes/secreta
 - `action done` or `action reject`: closes active sessions for that action and creates a candidate lesson.
 
 This separates planning from execution: actions decide what may be done, sessions hold the working context while it is being done.
+
+## Focus Queue
+
+Focus queues live in `~/.oh-hermes/secretary/briefings/focus-YYYY-MM-DD.md`. They compress active sessions, due tasks, approved actions, proposed actions needing approval, inbox items, and candidate lessons into one priority lane for the day.
+
+Use `oh-hermes secretary focus` when you want the personal agent to decide what deserves attention before starting a work session.
 
 ## Learning Loop
 
