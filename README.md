@@ -77,6 +77,7 @@ oh-hermes secretary reminders
 oh-hermes secretary integrations status
 oh-hermes secretary brief
 oh-hermes secretary focus
+oh-hermes secretary focus --json
 oh-hermes secretary --install-timer
 oh-hermes auto-improve --install-timer
 oh-hermes ui --background

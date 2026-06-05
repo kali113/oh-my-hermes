@@ -118,6 +118,14 @@ grep -q "Secretary Focus Queue" "$focus_file"
 grep -q "Due And Overdue Tasks" "$focus_file"
 grep -q "Test due task" "$focus_file"
 grep -q "Stale smoke action" "$focus_file"
+focus_json="$("$ROOT/bin/oh-hermes" secretary focus --json)"
+grep -q '"items"' <<< "$focus_json"
+grep -q '"section": "due_task"' <<< "$focus_json"
+grep -q '"section": "auto_startable_action"' <<< "$focus_json"
+grep -q '"title": "Test due task"' <<< "$focus_json"
+if command -v python3 >/dev/null 2>&1; then
+  python3 -m json.tool <<< "$focus_json" >/dev/null
+fi
 lesson_file="$("$ROOT/bin/oh-hermes" secretary learn add --title "Smoke lesson" --body "Remember smoke-test preference" --source smoke --confidence high)"
 [[ -f "$lesson_file" ]]
 learn_list="$("$ROOT/bin/oh-hermes" secretary learn list)"

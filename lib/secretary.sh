@@ -1433,6 +1433,10 @@ secretary_brief() {
 }
 
 secretary_focus() {
+  if [[ "${1:-}" == "--json" ]]; then
+    secretary_focus_json
+    return 0
+  fi
   secretary_init >/dev/null
   local dir report today file title status due priority risk approval project action session_count section_count total=0
   dir="$(secretary_dir)"
@@ -1544,6 +1548,119 @@ secretary_focus() {
     printf -- '- Focus items: `%s`\n' "$total"
   } | write_private_report "$report"
   printf '%s\n' "$report"
+}
+
+secretary_focus_json_field() {
+  local first="$1" key="$2" value="$3"
+  [[ "$first" == "1" ]] || printf ','
+  printf '\n      '
+  oh_json_string "$key"
+  printf ': '
+  oh_json_string "$value"
+}
+
+secretary_focus_json_object() {
+  local section="$1" id="$2" title="$3" status="${4:-}" due="${5:-}" priority="${6:-}" risk="${7:-}" project="${8:-}" action="${9:-}"
+  printf '    {'
+  secretary_focus_json_field 1 section "$section"
+  secretary_focus_json_field 0 id "$id"
+  secretary_focus_json_field 0 title "$title"
+  secretary_focus_json_field 0 status "$status"
+  secretary_focus_json_field 0 due "$due"
+  secretary_focus_json_field 0 priority "$priority"
+  secretary_focus_json_field 0 risk "$risk"
+  secretary_focus_json_field 0 project "$project"
+  secretary_focus_json_field 0 action "$action"
+  printf '\n    }'
+}
+
+secretary_focus_json_emit() {
+  local first="$1" section="$2" id="$3" title="$4" status="${5:-}" due="${6:-}" priority="${7:-}" risk="${8:-}" project="${9:-}" action="${10:-}"
+  [[ "$first" == "1" ]] || printf ',\n'
+  secretary_focus_json_object "$section" "$id" "$title" "$status" "$due" "$priority" "$risk" "$project" "$action"
+}
+
+secretary_focus_json() {
+  secretary_init >/dev/null
+  local dir today file title status due priority risk approval project action lesson id confidence source first=1 total=0
+  dir="$(secretary_dir)"
+  today="$(date +%F)"
+  printf '{\n  "generated": '
+  oh_json_string "$(date -Is)"
+  printf ',\n  "date": '
+  oh_json_string "$today"
+  printf ',\n  "items": [\n'
+
+  while IFS= read -r file; do
+    status="$(secretary_session_field "$file" "Status")"
+    [[ "${status:-active}" == "active" ]] || continue
+    title="$(sed -n '1s/^# //p' "$file" | sed 's/^Worker Session: //')"
+    action="$(secretary_session_field "$file" "Action")"
+    secretary_focus_json_emit "$first" active_session "$(basename "$file" .md)" "$title" "${status:-active}" "" "" "$(secretary_session_field "$file" "Risk")" "$(secretary_session_field "$file" "Project")" "$action"
+    first=0
+    total=$((total + 1))
+  done < <(find "$dir/sessions" -type f -name '*.md' 2>/dev/null | sort)
+
+  while IFS= read -r file; do
+    status="$(secretary_task_status "$file")"
+    [[ "$status" != "done" ]] || continue
+    due="$(secretary_task_field "$file" "Due")"
+    [[ -n "$due" && ( "$due" == "$today" || "$due" < "$today" ) ]] || continue
+    title="$(sed -n '1s/^# //p' "$file")"
+    secretary_focus_json_emit "$first" due_task "$(basename "$file" .md)" "$title" "$status" "$due" "$(secretary_task_field "$file" "Priority")" "" "$(secretary_task_field "$file" "Project")" ""
+    first=0
+    total=$((total + 1))
+  done < <(find "$dir/tasks" -type f -name '*.md' 2>/dev/null | sort)
+
+  while IFS= read -r file; do
+    status="$(secretary_action_field "$file" "Status")"
+    [[ "$status" == "approved" ]] || continue
+    title="$(sed -n '1s/^# //p' "$file")"
+    secretary_focus_json_emit "$first" approved_action "$(basename "$file" .md)" "$title" "$status" "" "" "$(secretary_action_field "$file" "Risk")" "$(secretary_action_field "$file" "Project")" ""
+    first=0
+    total=$((total + 1))
+  done < <(find "$dir/actions" -type f -name '*.md' 2>/dev/null | sort)
+
+  while IFS= read -r file; do
+    status="$(secretary_action_field "$file" "Status")"
+    approval="$(secretary_action_field "$file" "Requires Approval")"
+    [[ "${status:-proposed}" == "proposed" && "${approval:-1}" == "0" ]] || continue
+    title="$(sed -n '1s/^# //p' "$file")"
+    secretary_focus_json_emit "$first" auto_startable_action "$(basename "$file" .md)" "$title" "${status:-proposed}" "" "" "$(secretary_action_field "$file" "Risk")" "$(secretary_action_field "$file" "Project")" ""
+    first=0
+    total=$((total + 1))
+  done < <(find "$dir/actions" -type f -name '*.md' 2>/dev/null | sort)
+
+  while IFS= read -r file; do
+    status="$(secretary_action_field "$file" "Status")"
+    approval="$(secretary_action_field "$file" "Requires Approval")"
+    [[ "${status:-proposed}" == "proposed" && "${approval:-1}" == "1" ]] || continue
+    title="$(sed -n '1s/^# //p' "$file")"
+    secretary_focus_json_emit "$first" approval_needed_action "$(basename "$file" .md)" "$title" "${status:-proposed}" "" "" "$(secretary_action_field "$file" "Risk")" "$(secretary_action_field "$file" "Project")" ""
+    first=0
+    total=$((total + 1))
+  done < <(find "$dir/actions" -type f -name '*.md' 2>/dev/null | sort)
+
+  while IFS= read -r file; do
+    title="$(sed -n '1s/^# //p' "$file")"
+    secretary_focus_json_emit "$first" inbox "$(basename "$file" .md)" "$title" "" "" "" "" "" ""
+    first=0
+    total=$((total + 1))
+  done < <(find "$dir/inbox" -maxdepth 1 -type f -name '*.md' 2>/dev/null | sort | tail -20)
+
+  while IFS= read -r lesson; do
+    [[ -n "$lesson" ]] || continue
+    id="$(awk -F' \\| ' '{print $1}' <<< "$lesson")"
+    status="$(awk -F' \\| ' '{print $2}' <<< "$lesson")"
+    confidence="$(awk -F' \\| ' '{print $3}' <<< "$lesson")"
+    source="$(awk -F' \\| ' '{print $4}' <<< "$lesson")"
+    title="$(awk -F' \\| ' '{print $5}' <<< "$lesson")"
+    secretary_focus_json_emit "$first" candidate_lesson "$id" "$title" "$status" "" "$confidence" "" "$source" ""
+    first=0
+    total=$((total + 1))
+  done < <(secretary_learn_list --status candidate | tail -n +3 | head -20)
+
+  printf '\n  ],\n  "total": %s\n}\n' "$total"
 }
 
 secretary_worklog() {

@@ -25,13 +25,7 @@ agent_latest_report_files() {
 }
 
 agent_json_string() {
-  local value="${1:-}"
-  value="${value//\\/\\\\}"
-  value="${value//\"/\\\"}"
-  value="${value//$'\n'/\\n}"
-  value="${value//$'\r'/\\r}"
-  value="${value//$'\t'/\\t}"
-  printf '"%s"' "$value"
+  oh_json_string "$@"
 }
 
 agent_json_kv_object() {

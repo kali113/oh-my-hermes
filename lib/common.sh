@@ -23,6 +23,16 @@ need() {
   have "$1" || die "Missing required command: $1"
 }
 
+oh_json_string() {
+  local value="${1:-}"
+  value="${value//\\/\\\\}"
+  value="${value//\"/\\\"}"
+  value="${value//$'\n'/\\n}"
+  value="${value//$'\r'/\\r}"
+  value="${value//$'\t'/\\t}"
+  printf '"%s"' "$value"
+}
+
 ts() {
   date -u +%Y%m%dT%H%M%SZ
 }

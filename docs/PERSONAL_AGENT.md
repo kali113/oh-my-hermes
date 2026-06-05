@@ -62,6 +62,7 @@ oh-hermes secretary capture --kind tasks --title "Follow up on X" --body "Contex
 oh-hermes secretary worklog "Project name" "Goal for this work session"
 oh-hermes secretary brief
 oh-hermes secretary focus
+oh-hermes secretary focus --json
 oh-hermes secretary --install-timer
 oh-hermes secretary status
 oh-hermes agent status
