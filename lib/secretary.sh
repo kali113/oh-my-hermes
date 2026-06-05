@@ -1485,6 +1485,21 @@ secretary_focus() {
     done < <(find "$dir/actions" -type f -name '*.md' 2>/dev/null | sort)
     [[ "$section_count" -gt 0 ]] || printf -- '- No approved actions waiting to start.\n'
 
+    printf '\n## Auto-Startable Actions\n\n'
+    section_count=0
+    while IFS= read -r file; do
+      status="$(secretary_action_field "$file" "Status")"
+      approval="$(secretary_action_field "$file" "Requires Approval")"
+      [[ "${status:-proposed}" == "proposed" && "${approval:-1}" == "0" ]] || continue
+      title="$(sed -n '1s/^# //p' "$file")"
+      risk="$(secretary_action_field "$file" "Risk")"
+      project="$(secretary_action_field "$file" "Project")"
+      printf -- '- `%s` `%s` %s\n' "${risk:-medium}" "${project:-general}" "$title"
+      section_count=$((section_count + 1))
+      total=$((total + 1))
+    done < <(find "$dir/actions" -type f -name '*.md' 2>/dev/null | sort)
+    [[ "$section_count" -gt 0 ]] || printf -- '- No auto-startable actions waiting to start.\n'
+
     printf '\n## Proposed Actions Needing Approval\n\n'
     section_count=0
     while IFS= read -r file; do
@@ -1512,11 +1527,12 @@ secretary_focus() {
 
     printf '\n## Learning Queue\n\n'
     section_count=0
-    secretary_learn_list --status candidate | tail -n +3 | head -20 | while IFS= read -r lesson; do
+    while IFS= read -r lesson; do
       [[ -n "$lesson" ]] || continue
       printf -- '- %s\n' "$lesson"
       section_count=$((section_count + 1))
-    done
+      total=$((total + 1))
+    done < <(secretary_learn_list --status candidate | tail -n +3 | head -20)
     [[ "$section_count" -gt 0 ]] || printf -- '- No candidate lessons waiting for review.\n'
 
     printf '\n## Operating Guidance\n\n'
