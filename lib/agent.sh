@@ -5,6 +5,25 @@ agent_latest_file() {
   find "$OH_STATE_DIR" -path "$pattern" -type f 2>/dev/null | sort | tail -n 1
 }
 
+agent_latest_report_files() {
+  local pattern latest
+  for pattern in \
+    '*/reports/god-mode-*.md' \
+    '*/reports/auto-improve-*.md' \
+    '*/reports/self-review-*.md' \
+    '*/secretary/briefings/????-??-??.md' \
+    '*/secretary/briefings/focus-*.md' \
+    '*/secretary/briefings/worker-actions-*.md' \
+    '*/secretary/briefings/integration-plan-*.md' \
+    '*/secretary/learning/reviews/*.md' \
+    '*/secretary/sweeps/*.md' \
+    '*/secretary/audits/*.md' \
+    '*/secretary/reminders/*.md'; do
+    latest="$(agent_latest_file "$pattern")"
+    [[ -n "$latest" ]] && printf '%s\n' "$latest"
+  done
+}
+
 agent_json_string() {
   local value="${1:-}"
   value="${value//\\/\\\\}"
@@ -36,21 +55,12 @@ agent_json_kv_object() {
 agent_latest_reports_json() {
   local latest first=1
   printf '['
-  for latest in \
-    "$(agent_latest_file '*/reports/god-mode-*.md')" \
-    "$(agent_latest_file '*/reports/auto-improve-*.md')" \
-    "$(agent_latest_file '*/reports/self-review-*.md')" \
-    "$(agent_latest_file '*/secretary/briefings/*.md')" \
-    "$(agent_latest_file '*/secretary/learning/reviews/*.md')" \
-    "$(agent_latest_file '*/secretary/sweeps/*.md')" \
-    "$(agent_latest_file '*/secretary/audits/*.md')" \
-    "$(agent_latest_file '*/secretary/reminders/*.md')"; do
-    [[ -n "$latest" ]] || continue
+  while IFS= read -r latest; do
     [[ "$first" == "1" ]] || printf ','
     printf '\n    '
     agent_json_string "$latest"
     first=0
-  done
+  done < <(agent_latest_report_files)
   [[ "$first" == "1" ]] || printf '\n  '
   printf ']'
 }
@@ -110,17 +120,9 @@ agent_status() {
   fi
   printf '\n```\n\n## Latest Reports\n\n'
   local latest
-  for latest in \
-    "$(agent_latest_file '*/reports/god-mode-*.md')" \
-    "$(agent_latest_file '*/reports/auto-improve-*.md')" \
-    "$(agent_latest_file '*/reports/self-review-*.md')" \
-    "$(agent_latest_file '*/secretary/briefings/*.md')" \
-    "$(agent_latest_file '*/secretary/learning/reviews/*.md')" \
-    "$(agent_latest_file '*/secretary/sweeps/*.md')" \
-    "$(agent_latest_file '*/secretary/audits/*.md')" \
-    "$(agent_latest_file '*/secretary/reminders/*.md')"; do
-    [[ -n "$latest" ]] && printf -- '- `%s`\n' "$latest"
-  done
+  while IFS= read -r latest; do
+    printf -- '- `%s`\n' "$latest"
+  done < <(agent_latest_report_files)
 }
 
 agent_report() {
