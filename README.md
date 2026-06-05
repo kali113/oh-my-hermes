@@ -41,6 +41,8 @@ cd /home/arch/oh-hermes
 oh-hermes doctor
 oh-hermes agent status
 oh-hermes agent json
+oh-hermes agent overview
+oh-hermes agent overview --json
 oh-hermes modules json
 oh-hermes agent report
 oh-hermes agent context-pack
@@ -91,6 +93,7 @@ oh-hermes ui --background
 `god-mode` runs the unattended cycle: backups, service repair, durable service setup, diagnostics, self-review, skill evolution, safe auto-apply, redaction checks, and local commits.
 `agent status` is the quick command-center view for health, timers, services, tasks, git state, and latest reports.
 `agent json` emits the same core command-center signal as parseable JSON for dashboards, scripts, and worker pipelines.
+`agent overview --json` aggregates agent status, module inventory, secretary next item, and focus queue in one control-plane payload.
 `modules json` emits module tier, role, upstream source, and current install status for dashboards and setup audits.
 Health values use `ok` for verified HTTP success, `running-unreachable` when the backing user service is active but HTTP cannot be reached, and `unknown-unreachable` when local probing is blocked by the execution environment.
 `agent context-pack` writes a redacted private summary for future sessions under `~/.oh-hermes/reports`.

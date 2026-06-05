@@ -86,6 +86,39 @@ agent_status_json() {
   printf '\n}\n'
 }
 
+agent_overview_json() {
+  printf '{\n'
+  printf '  "generated": '
+  agent_json_string "$(date -Is)"
+  printf ',\n  "status": '
+  agent_status_json
+  printf ',\n  "modules": '
+  module_status_json
+  printf ',\n  "secretary_next": '
+  secretary_next_json
+  printf ',\n  "secretary_focus": '
+  secretary_focus_json
+  printf '}\n'
+}
+
+agent_overview() {
+  if [[ "${1:-}" == "--json" ]]; then
+    agent_overview_json
+    return 0
+  fi
+  printf '# oh-hermes Agent Overview\n\n'
+  printf -- '- Generated: `%s`\n\n' "$(date -Is)"
+  printf '## Status\n\n'
+  agent_status
+  printf '\n## Modules\n\n```text\n'
+  module_status_all
+  printf '\n```\n\n## Next Item\n\n'
+  secretary_next
+  printf '\n\n## Focus Queue JSON\n\n```json\n'
+  secretary_focus_json
+  printf '```\n'
+}
+
 agent_status() {
   printf '# oh-hermes Agent Status\n\n'
   printf -- '- Generated: `%s`\n\n' "$(date -Is)"
@@ -184,6 +217,7 @@ agent_cmd() {
   case "$sub" in
     status) agent_status "$@" ;;
     json) agent_status_json "$@" ;;
+    overview) agent_overview "$@" ;;
     report) agent_report "$@" ;;
     context-pack) agent_context_pack "$@" ;;
     *) die "Unknown agent command: $sub" ;;

@@ -69,6 +69,8 @@ oh-hermes secretary --install-timer
 oh-hermes secretary status
 oh-hermes agent status
 oh-hermes agent json
+oh-hermes agent overview
+oh-hermes agent overview --json
 oh-hermes agent report
 oh-hermes agent context-pack
 oh-hermes publish-check
@@ -76,6 +78,8 @@ oh-hermes publish-snapshot --out-dir /tmp/oh-hermes-publish
 ```
 
 `agent json` is the machine-readable personal-agent status surface. Health values use `ok` for verified HTTP success, `running-unreachable` when the backing user service is active but the HTTP probe cannot reach it, and `unknown-unreachable` when the current execution environment blocks local probing.
+
+`agent overview --json` is the one-call control-plane payload for autonomous workers. It includes status, modules, the selected next item, and the current focus queue.
 
 `secretary --install-timer` installs the daily briefing, focus queue, worker action plan, learning review, maintenance sweep, and state audit timer, half-hourly reminder check, hourly read-only agenda feed sync, and daily routine runner.
 `secretary init` seeds a default daily review routine if none exists.

@@ -43,7 +43,7 @@ Usage:
   oh-hermes self-review
   oh-hermes evolve-skill <skill-name> [--dry-run|--run] [--iterations N]
   oh-hermes god-mode [--once|--install-timer|--remove-timer|--status]
-  oh-hermes agent status|json|report|context-pack
+  oh-hermes agent status|json|overview [--json]|report|context-pack
   oh-hermes secretary init|brief|focus [--json]|next [--json]|capture|inbox|task|decision|action|session|learn|sweep|audit|routine|agenda|reminders|notify|integrations|worklog|status|--install-timer|--remove-timer
   oh-hermes publish-check
   oh-hermes publish-snapshot [--out-dir DIR] [--skip-check]

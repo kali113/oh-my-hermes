@@ -209,6 +209,17 @@ grep -q '"latest_reports"' <<< "$agent_json"
 if command -v python3 >/dev/null 2>&1; then
   python3 -m json.tool <<< "$agent_json" >/dev/null
 fi
+agent_overview="$("$ROOT/bin/oh-hermes" agent overview)"
+grep -q "oh-hermes Agent Overview" <<< "$agent_overview"
+grep -q "Next Item" <<< "$agent_overview"
+agent_overview_json="$("$ROOT/bin/oh-hermes" agent overview --json)"
+grep -q '"status"' <<< "$agent_overview_json"
+grep -q '"modules"' <<< "$agent_overview_json"
+grep -q '"secretary_next"' <<< "$agent_overview_json"
+grep -q '"secretary_focus"' <<< "$agent_overview_json"
+if command -v python3 >/dev/null 2>&1; then
+  python3 -m json.tool <<< "$agent_overview_json" >/dev/null
+fi
 "$ROOT/bin/oh-hermes" agent report >/dev/null
 context_pack="$("$ROOT/bin/oh-hermes" agent context-pack)"
 grep -q "Active Lessons" "$context_pack"
