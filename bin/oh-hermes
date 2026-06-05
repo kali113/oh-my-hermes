@@ -38,7 +38,7 @@ Usage:
   oh-hermes backup
   oh-hermes provider
   oh-hermes ui [--background|--install-service|--remove-service|--status]
-  oh-hermes modules list|status|enable <name>
+  oh-hermes modules list|status|json|enable <name>
   oh-hermes auto-improve [--dry-run|--install-timer|--remove-timer]
   oh-hermes self-review
   oh-hermes evolve-skill <skill-name> [--dry-run|--run] [--iterations N]
@@ -133,6 +133,7 @@ cmd_modules() {
   case "$sub" in
     list) module_list ;;
     status|"") module_status_all ;;
+    json) module_status_json ;;
     enable)
       [[ $# -eq 1 ]] || die "Usage: oh-hermes modules enable <name>"
       module_enable "$1"
