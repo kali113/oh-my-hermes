@@ -66,6 +66,7 @@ oh-hermes agent status
 oh-hermes agent report
 oh-hermes agent context-pack
 oh-hermes publish-check
+oh-hermes publish-snapshot --out-dir /tmp/oh-hermes-publish
 ```
 
 `secretary --install-timer` installs the daily briefing, worker action plan, learning review, and maintenance sweep timer, half-hourly reminder check, hourly read-only agenda feed sync, and daily routine runner.

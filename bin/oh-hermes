@@ -46,6 +46,7 @@ Usage:
   oh-hermes agent status|report|context-pack
   oh-hermes secretary init|brief|capture|inbox|task|decision|action|session|learn|sweep|routine|agenda|reminders|notify|integrations|worklog|status|--install-timer|--remove-timer
   oh-hermes publish-check
+  oh-hermes publish-snapshot [--out-dir DIR] [--skip-check]
   oh-hermes redact-check [path]
   oh-hermes test
 EOF
@@ -219,6 +220,7 @@ main() {
     agent) agent_cmd "$@" ;;
     secretary) cmd_secretary "$@" ;;
     publish-check) publish_check "$@" ;;
+    publish-snapshot) publish_snapshot "$@" ;;
     redact-check) redact_check "${1:-$OH_ROOT}" ;;
     test) cmd_test ;;
     -h|--help|help|"") usage ;;

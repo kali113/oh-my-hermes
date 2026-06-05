@@ -42,6 +42,7 @@ oh-hermes agent status
 oh-hermes agent report
 oh-hermes agent context-pack
 oh-hermes publish-check
+oh-hermes publish-snapshot --out-dir /tmp/oh-hermes-publish
 oh-hermes auto-improve
 oh-hermes self-review
 oh-hermes evolve-skill oh-auto-improve --dry-run
@@ -84,6 +85,7 @@ oh-hermes ui --background
 `agent context-pack` writes a redacted private summary for future sessions under `~/.oh-hermes/reports`.
 `secretary` manages your private personal-agent layer under `~/.oh-hermes/secretary`: inbox, tasks, worker actions, worker sessions, reusable lessons, decisions, work logs, daily briefings, daily worker action plans, learning reviews, and maintenance sweeps.
 `publish-check` is the release gate before pushing a redacted public repo.
+`publish-snapshot` creates a `git archive HEAD` tarball plus a manifest after the publish gate passes.
 See `docs/SELF_IMPROVEMENT.md` for the latest guarded evolution result.
 See `docs/PERSONAL_AGENT.md` for the secretary/worker operating model.
 

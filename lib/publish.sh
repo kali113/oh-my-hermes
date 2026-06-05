@@ -46,3 +46,49 @@ publish_check() {
     die "Publish check failed"
   fi
 }
+
+publish_snapshot() {
+  local out_dir="" skip_check=0 archive manifest revision tracked_count
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --out-dir) out_dir="${2:-}"; [[ -n "$out_dir" ]] || die "--out-dir needs a value"; shift 2 ;;
+      --skip-check) skip_check=1; shift ;;
+      *) die "Unknown publish-snapshot option: $1" ;;
+    esac
+  done
+
+  need git
+  [[ -d "$OH_ROOT/.git" ]] || die "publish-snapshot requires a git checkout"
+  if [[ "$skip_check" != "1" ]]; then
+    publish_check
+  else
+    redact_check "$OH_ROOT"
+  fi
+
+  revision="$(git -C "$OH_ROOT" rev-parse --short=12 HEAD)"
+  tracked_count="$(git -C "$OH_ROOT" ls-files | wc -l)"
+  [[ -n "$out_dir" ]] || out_dir="$OH_STATE_DIR/publish"
+  mkdir -p "$out_dir"
+  archive="$out_dir/oh-hermes-$revision.tar.gz"
+  manifest="$out_dir/oh-hermes-$revision.MANIFEST.md"
+
+  git -C "$OH_ROOT" archive --format=tar.gz --prefix="oh-hermes-$revision/" -o "$archive" HEAD
+  {
+    printf '# oh-hermes Publish Snapshot\n\n'
+    printf -- '- Generated: `%s`\n' "$(date -Is)"
+    printf -- '- Revision: `%s`\n' "$revision"
+    printf -- '- Archive: `%s`\n' "$archive"
+    printf -- '- Tracked files: `%s`\n\n' "$tracked_count"
+    printf '## Contents\n\n'
+    printf 'This archive is produced from `git archive HEAD`; private runtime state under `~/.oh-hermes`, vendored checkouts, logs, reports, and secrets are not included unless they are tracked by git.\n\n'
+    printf '## Verification\n\n'
+    if [[ "$skip_check" == "1" ]]; then
+      printf -- '- Full publish check: `skipped by --skip-check`\n'
+      printf -- '- Redaction check: `passed`\n'
+    else
+      printf -- '- Full publish check: `passed`\n'
+    fi
+  } > "$manifest"
+  printf '%s\n' "$archive"
+  printf '%s\n' "$manifest"
+}
