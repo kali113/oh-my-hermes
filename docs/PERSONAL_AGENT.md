@@ -39,6 +39,7 @@ oh-hermes secretary learn show <lesson-id-prefix>
 oh-hermes secretary learn promote <lesson-id-prefix>
 oh-hermes secretary learn archive <lesson-id-prefix>
 oh-hermes secretary learn review
+oh-hermes secretary sweep
 oh-hermes secretary routine add --name "Morning review" --schedule daily
 oh-hermes secretary routine run daily
 oh-hermes secretary task add --title "Follow up on X" --due 2026-06-05 --priority high
@@ -67,7 +68,7 @@ oh-hermes agent context-pack
 oh-hermes publish-check
 ```
 
-`secretary --install-timer` installs the daily briefing, worker action plan, and learning review timer, half-hourly reminder check, hourly read-only agenda feed sync, and daily routine runner.
+`secretary --install-timer` installs the daily briefing, worker action plan, learning review, and maintenance sweep timer, half-hourly reminder check, hourly read-only agenda feed sync, and daily routine runner.
 `secretary init` seeds a default daily review routine if none exists.
 
 ## Integration Boundary
@@ -117,3 +118,9 @@ Reusable lessons live under `~/.oh-hermes/secretary/learning`. Completing a task
 - `archived`: noisy, stale, or one-off lesson.
 
 This is how usage makes the setup better over time: outcomes become reviewable learning candidates, and only promoted lessons become durable guidance.
+
+## Maintenance Sweeps
+
+Maintenance sweeps live under `~/.oh-hermes/secretary/sweeps`. They surface stale open tasks, stalled worker actions, stale active sessions, candidate lessons waiting for review, and missing integration setup.
+
+Use `oh-hermes secretary sweep` when the agent feels cluttered or when you want a compact cleanup checklist. The daily secretary timer creates one automatically.

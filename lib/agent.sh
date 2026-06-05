@@ -39,6 +39,7 @@ agent_status() {
     "$(agent_latest_file '*/reports/self-review-*.md')" \
     "$(agent_latest_file '*/secretary/briefings/*.md')" \
     "$(agent_latest_file '*/secretary/learning/reviews/*.md')" \
+    "$(agent_latest_file '*/secretary/sweeps/*.md')" \
     "$(agent_latest_file '*/secretary/reminders/*.md')"; do
     [[ -n "$latest" ]] && printf -- '- `%s`\n' "$latest"
   done
@@ -73,6 +74,14 @@ agent_context_pack() {
     secretary_learn_list --status active 2>&1 || true
     printf '\n## Candidate Lessons\n\n'
     secretary_learn_list --status candidate 2>&1 || true
+    printf '\n## Latest Maintenance Sweep\n\n'
+    local sweep
+    sweep="$(agent_latest_file '*/secretary/sweeps/*.md')"
+    if [[ -n "$sweep" ]]; then
+      sed -n '1,220p' "$sweep"
+    else
+      printf 'No maintenance sweep has been generated yet.\n'
+    fi
     printf '\n## Routines\n\n'
     secretary_routine_list 2>&1 || true
     printf '\n## Due Tasks\n\n'

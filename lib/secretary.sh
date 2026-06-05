@@ -11,7 +11,7 @@ secretary_slug() {
 secretary_init() {
   local dir
   dir="$(secretary_dir)"
-  run mkdir -p "$dir/inbox" "$dir/tasks" "$dir/briefings" "$dir/worklog" "$dir/decisions" "$dir/reminders" "$dir/integrations" "$dir/agenda/sources" "$dir/agenda/events" "$dir/agenda/feeds" "$dir/routines" "$dir/routine-runs" "$dir/actions" "$dir/sessions" "$dir/learning" "$dir/learning/reviews"
+  run mkdir -p "$dir/inbox" "$dir/tasks" "$dir/briefings" "$dir/worklog" "$dir/decisions" "$dir/reminders" "$dir/integrations" "$dir/agenda/sources" "$dir/agenda/events" "$dir/agenda/feeds" "$dir/routines" "$dir/routine-runs" "$dir/actions" "$dir/sessions" "$dir/learning" "$dir/learning/reviews" "$dir/sweeps"
   if [[ ! -f "$dir/preferences.md" ]]; then
     run cp "$OH_ROOT/templates/secretary/preferences.md" "$dir/preferences.md"
   fi
@@ -672,6 +672,57 @@ secretary_inbox() {
     triage) secretary_inbox_triage "$@" ;;
     *) die "Unknown secretary inbox command: $sub" ;;
   esac
+}
+
+secretary_sweep() {
+  secretary_init >/dev/null
+  local task_days=7 action_days=3 session_days=1 report dir
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --task-days) task_days="${2:-}"; [[ -n "$task_days" ]] || die "--task-days needs a value"; shift 2 ;;
+      --action-days) action_days="${2:-}"; [[ -n "$action_days" ]] || die "--action-days needs a value"; shift 2 ;;
+      --session-days) session_days="${2:-}"; [[ -n "$session_days" ]] || die "--session-days needs a value"; shift 2 ;;
+      *) die "Unknown sweep option: $1" ;;
+    esac
+  done
+  dir="$(secretary_dir)"
+  report="$dir/sweeps/$(ts)-maintenance-sweep.md"
+  {
+    printf '# Secretary Maintenance Sweep\n\n'
+    printf -- '- Generated: `%s`\n' "$(date -Is)"
+    printf -- '- Stale task threshold: `%s day(s)`\n' "$task_days"
+    printf -- '- Stale action threshold: `%s day(s)`\n' "$action_days"
+    printf -- '- Stale session threshold: `%s day(s)`\n\n' "$session_days"
+    printf '## Stale Open Tasks\n\n'
+    find "$dir/tasks" -type f -name '*.md' -mtime +"$task_days" -print 2>/dev/null | sort | while IFS= read -r task; do
+      [[ "$(secretary_task_status "$task")" != "done" ]] || continue
+      printf -- '- `%s` %s\n' "$(basename "$task" .md)" "$(sed -n '1s/^# //p' "$task")"
+    done
+    printf '\n## Stalled Worker Actions\n\n'
+    find "$dir/actions" -type f -name '*.md' -mtime +"$action_days" -print 2>/dev/null | sort | while IFS= read -r action; do
+      case "$(secretary_action_field "$action" "Status")" in
+        done|rejected) continue ;;
+      esac
+      printf -- '- `%s` `%s` %s\n' "$(basename "$action" .md)" "$(secretary_action_field "$action" "Status")" "$(sed -n '1s/^# //p' "$action")"
+    done
+    printf '\n## Stale Active Sessions\n\n'
+    find "$dir/sessions" -type f -name '*.md' -mtime +"$session_days" -print 2>/dev/null | sort | while IFS= read -r session; do
+      [[ "$(secretary_session_field "$session" "Status")" == "active" ]] || continue
+      printf -- '- `%s` action `%s` %s\n' "$(basename "$session" .md)" "$(secretary_session_field "$session" "Action")" "$(sed -n '1s/^# //p' "$session" | sed 's/^Worker Session: //')"
+    done
+    printf '\n## Candidate Lessons Waiting For Review\n\n'
+    secretary_learn_list --status candidate | tail -n +3 | sed 's/^/- /'
+    printf '\n## Integration Gaps\n\n'
+    [[ "$(find "$dir/agenda/feeds" -type f -name '*.env' 2>/dev/null | wc -l)" -gt 0 ]] || printf -- '- No agenda feeds configured.\n'
+    [[ "$(find "$dir/integrations" -type f -name '*.md' 2>/dev/null | wc -l)" -gt 0 ]] || printf -- '- Integration policies have not been initialized.\n'
+    [[ -f "$(secretary_notification_env)" ]] || printf -- '- Notification preferences are not initialized.\n'
+    printf '\n## Recommended Commands\n\n'
+    printf -- '- Review stale tasks with `oh-hermes secretary task list --all`.\n'
+    printf -- '- Start approved actions with `oh-hermes secretary action start <id>`.\n'
+    printf -- '- Close finished sessions with `oh-hermes secretary action done <id>`.\n'
+    printf -- '- Promote or archive learning candidates after review.\n'
+  } | write_private_report "$report"
+  printf '%s\n' "$report"
 }
 
 secretary_task_field() {
@@ -1429,6 +1480,7 @@ secretary_status() {
   printf 'lessons=%s\n' "$(find "$dir/learning" -maxdepth 1 -type f -name '*.md' 2>/dev/null | wc -l)"
   printf 'candidate_lessons=%s\n' "$(secretary_learn_list --status candidate 2>/dev/null | tail -n +3 | wc -l)"
   printf 'learning_reviews=%s\n' "$(find "$dir/learning/reviews" -type f -name '*.md' 2>/dev/null | wc -l)"
+  printf 'sweeps=%s\n' "$(find "$dir/sweeps" -type f -name '*.md' 2>/dev/null | wc -l)"
   printf 'routines=%s\n' "$(find "$dir/routines" -type f -name '*.md' 2>/dev/null | wc -l)"
   printf 'routine_runs=%s\n' "$(find "$dir/routine-runs" -type f -name '*.md' 2>/dev/null | wc -l)"
   printf 'integrations=%s\n' "$(find "$dir/integrations" -type f -name '*.md' 2>/dev/null | wc -l)"
