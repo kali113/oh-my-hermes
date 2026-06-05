@@ -1663,6 +1663,134 @@ secretary_focus_json() {
   printf '\n  ],\n  "total": %s\n}\n' "$total"
 }
 
+secretary_next_emit_pick() {
+  printf '%s\034%s\034%s\034%s\034%s\034%s\034%s\034%s\034%s\034%s\034%s\n' "$@"
+}
+
+secretary_next_pick() {
+  secretary_init >/dev/null
+  local dir today file title status due priority risk approval project action lesson id confidence source
+  dir="$(secretary_dir)"
+  today="$(date +%F)"
+
+  while IFS= read -r file; do
+    status="$(secretary_session_field "$file" "Status")"
+    [[ "${status:-active}" == "active" ]] || continue
+    title="$(sed -n '1s/^# //p' "$file" | sed 's/^Worker Session: //')"
+    action="$(secretary_session_field "$file" "Action")"
+    secretary_next_emit_pick active_session "$(basename "$file" .md)" "$title" "${status:-active}" "" "" "$(secretary_session_field "$file" "Risk")" "$(secretary_session_field "$file" "Project")" "$action" "oh-hermes secretary session show $(basename "$file" .md)" "Continue the active worker session before starting new work."
+    return 0
+  done < <(find "$dir/sessions" -type f -name '*.md' 2>/dev/null | sort)
+
+  while IFS= read -r file; do
+    status="$(secretary_task_status "$file")"
+    [[ "$status" != "done" ]] || continue
+    due="$(secretary_task_field "$file" "Due")"
+    [[ -n "$due" && ( "$due" == "$today" || "$due" < "$today" ) ]] || continue
+    title="$(sed -n '1s/^# //p' "$file")"
+    secretary_next_emit_pick due_task "$(basename "$file" .md)" "$title" "$status" "$due" "$(secretary_task_field "$file" "Priority")" "" "$(secretary_task_field "$file" "Project")" "" "oh-hermes secretary task show $(basename "$file" .md)" "Review the due or overdue task, then complete it or create a worker action."
+    return 0
+  done < <(find "$dir/tasks" -type f -name '*.md' 2>/dev/null | sort)
+
+  while IFS= read -r file; do
+    status="$(secretary_action_field "$file" "Status")"
+    [[ "$status" == "approved" ]] || continue
+    title="$(sed -n '1s/^# //p' "$file")"
+    secretary_next_emit_pick approved_action "$(basename "$file" .md)" "$title" "$status" "" "" "$(secretary_action_field "$file" "Risk")" "$(secretary_action_field "$file" "Project")" "" "oh-hermes secretary action start $(basename "$file" .md)" "Start the approved worker action."
+    return 0
+  done < <(find "$dir/actions" -type f -name '*.md' 2>/dev/null | sort)
+
+  while IFS= read -r file; do
+    status="$(secretary_action_field "$file" "Status")"
+    approval="$(secretary_action_field "$file" "Requires Approval")"
+    [[ "${status:-proposed}" == "proposed" && "${approval:-1}" == "0" ]] || continue
+    title="$(sed -n '1s/^# //p' "$file")"
+    secretary_next_emit_pick auto_startable_action "$(basename "$file" .md)" "$title" "${status:-proposed}" "" "" "$(secretary_action_field "$file" "Risk")" "$(secretary_action_field "$file" "Project")" "" "oh-hermes secretary action start $(basename "$file" .md)" "Start the no-approval local worker action."
+    return 0
+  done < <(find "$dir/actions" -type f -name '*.md' 2>/dev/null | sort)
+
+  while IFS= read -r file; do
+    status="$(secretary_action_field "$file" "Status")"
+    approval="$(secretary_action_field "$file" "Requires Approval")"
+    [[ "${status:-proposed}" == "proposed" && "${approval:-1}" == "1" ]] || continue
+    title="$(sed -n '1s/^# //p' "$file")"
+    secretary_next_emit_pick approval_needed_action "$(basename "$file" .md)" "$title" "${status:-proposed}" "" "" "$(secretary_action_field "$file" "Risk")" "$(secretary_action_field "$file" "Project")" "" "oh-hermes secretary action show $(basename "$file" .md)" "Inspect the proposal and ask for approval before starting it."
+    return 0
+  done < <(find "$dir/actions" -type f -name '*.md' 2>/dev/null | sort)
+
+  while IFS= read -r file; do
+    title="$(sed -n '1s/^# //p' "$file")"
+    secretary_next_emit_pick inbox "$(basename "$file" .md)" "$title" "" "" "" "" "" "" "oh-hermes secretary inbox show $(basename "$file" .md)" "Triage the inbox item into a task, action, decision, or worklog."
+    return 0
+  done < <(find "$dir/inbox" -maxdepth 1 -type f -name '*.md' 2>/dev/null | sort | tail -20)
+
+  while IFS= read -r lesson; do
+    [[ -n "$lesson" ]] || continue
+    id="$(awk -F' \\| ' '{print $1}' <<< "$lesson")"
+    status="$(awk -F' \\| ' '{print $2}' <<< "$lesson")"
+    confidence="$(awk -F' \\| ' '{print $3}' <<< "$lesson")"
+    source="$(awk -F' \\| ' '{print $4}' <<< "$lesson")"
+    title="$(awk -F' \\| ' '{print $5}' <<< "$lesson")"
+    secretary_next_emit_pick candidate_lesson "$id" "$title" "$status" "" "$confidence" "" "$source" "" "oh-hermes secretary learn show $id" "Review the candidate lesson and promote or archive it."
+    return 0
+  done < <(secretary_learn_list --status candidate | tail -n +3 | head -20)
+
+  secretary_next_emit_pick none "" "" "" "" "" "" "" "" "oh-hermes secretary focus" "No focus items are waiting. Generate or inspect the focus queue."
+}
+
+secretary_next_json() {
+  local section id title status due priority risk project action command reason
+  IFS=$'\034' read -r section id title status due priority risk project action command reason < <(secretary_next_pick)
+  printf '{\n'
+  printf '  "generated": '
+  oh_json_string "$(date -Is)"
+  printf ',\n  "section": '
+  oh_json_string "$section"
+  printf ',\n  "id": '
+  oh_json_string "$id"
+  printf ',\n  "title": '
+  oh_json_string "$title"
+  printf ',\n  "status": '
+  oh_json_string "$status"
+  printf ',\n  "due": '
+  oh_json_string "$due"
+  printf ',\n  "priority": '
+  oh_json_string "$priority"
+  printf ',\n  "risk": '
+  oh_json_string "$risk"
+  printf ',\n  "project": '
+  oh_json_string "$project"
+  printf ',\n  "action": '
+  oh_json_string "$action"
+  printf ',\n  "command": '
+  oh_json_string "$command"
+  printf ',\n  "reason": '
+  oh_json_string "$reason"
+  printf '\n}\n'
+}
+
+secretary_next() {
+  if [[ "${1:-}" == "--json" ]]; then
+    secretary_next_json
+    return 0
+  fi
+  local section id title status due priority risk project action command reason
+  IFS=$'\034' read -r section id title status due priority risk project action command reason < <(secretary_next_pick)
+  printf '# Secretary Next Item\n\n'
+  printf -- '- Generated: `%s`\n' "$(date -Is)"
+  printf -- '- Section: `%s`\n' "$section"
+  [[ -n "$id" ]] && printf -- '- ID: `%s`\n' "$id"
+  [[ -n "$title" ]] && printf -- '- Title: `%s`\n' "$title"
+  [[ -n "$status" ]] && printf -- '- Status: `%s`\n' "$status"
+  [[ -n "$due" ]] && printf -- '- Due: `%s`\n' "$due"
+  [[ -n "$priority" ]] && printf -- '- Priority: `%s`\n' "$priority"
+  [[ -n "$risk" ]] && printf -- '- Risk: `%s`\n' "$risk"
+  [[ -n "$project" ]] && printf -- '- Project: `%s`\n' "$project"
+  [[ -n "$action" ]] && printf -- '- Action: `%s`\n' "$action"
+  printf -- '- Recommended command: `%s`\n' "$command"
+  printf -- '- Reason: %s\n' "$reason"
+}
+
 secretary_worklog() {
   local title="${1:-Work session}" file
   shift || true

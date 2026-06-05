@@ -63,6 +63,8 @@ oh-hermes secretary worklog "Project name" "Goal for this work session"
 oh-hermes secretary brief
 oh-hermes secretary focus
 oh-hermes secretary focus --json
+oh-hermes secretary next
+oh-hermes secretary next --json
 oh-hermes secretary --install-timer
 oh-hermes secretary status
 oh-hermes agent status
@@ -121,6 +123,8 @@ This separates planning from execution: actions decide what may be done, session
 Focus queues live in `~/.oh-hermes/secretary/briefings/focus-YYYY-MM-DD.md`. They compress active sessions, due tasks, approved actions, proposed actions needing approval, inbox items, and candidate lessons into one priority lane for the day.
 
 Use `oh-hermes secretary focus` when you want the personal agent to decide what deserves attention before starting a work session.
+
+Use `oh-hermes secretary next` or `oh-hermes secretary next --json` when an agent needs exactly one top priority item plus the recommended safe command.
 
 ## Learning Loop
 

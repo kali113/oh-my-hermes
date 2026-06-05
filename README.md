@@ -78,6 +78,8 @@ oh-hermes secretary integrations status
 oh-hermes secretary brief
 oh-hermes secretary focus
 oh-hermes secretary focus --json
+oh-hermes secretary next
+oh-hermes secretary next --json
 oh-hermes secretary --install-timer
 oh-hermes auto-improve --install-timer
 oh-hermes ui --background
@@ -90,7 +92,7 @@ oh-hermes ui --background
 `agent json` emits the same core command-center signal as parseable JSON for dashboards, scripts, and worker pipelines.
 Health values use `ok` for verified HTTP success, `running-unreachable` when the backing user service is active but HTTP cannot be reached, and `unknown-unreachable` when local probing is blocked by the execution environment.
 `agent context-pack` writes a redacted private summary for future sessions under `~/.oh-hermes/reports`.
-`secretary` manages your private personal-agent layer under `~/.oh-hermes/secretary`: inbox, tasks, worker actions, worker sessions, reusable lessons, decisions, work logs, daily briefings, focus queues, daily worker action plans, learning reviews, maintenance sweeps, and state audits.
+`secretary` manages your private personal-agent layer under `~/.oh-hermes/secretary`: inbox, tasks, worker actions, worker sessions, reusable lessons, decisions, work logs, daily briefings, focus queues, next-item selection, daily worker action plans, learning reviews, maintenance sweeps, and state audits.
 `publish-check` is the release gate before pushing a redacted public repo.
 `publish-snapshot` creates a `git archive HEAD` tarball plus a manifest after the publish gate passes.
 See `docs/SELF_IMPROVEMENT.md` for the latest guarded evolution result.

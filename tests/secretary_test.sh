@@ -126,6 +126,17 @@ grep -q '"title": "Test due task"' <<< "$focus_json"
 if command -v python3 >/dev/null 2>&1; then
   python3 -m json.tool <<< "$focus_json" >/dev/null
 fi
+next_item="$("$ROOT/bin/oh-hermes" secretary next)"
+grep -q "Secretary Next Item" <<< "$next_item"
+grep -q "active_session" <<< "$next_item"
+grep -q "oh-hermes secretary session show" <<< "$next_item"
+next_json="$("$ROOT/bin/oh-hermes" secretary next --json)"
+grep -q '"section": "active_session"' <<< "$next_json"
+grep -q '"title": "Stale smoke session"' <<< "$next_json"
+grep -q '"command": "oh-hermes secretary session show' <<< "$next_json"
+if command -v python3 >/dev/null 2>&1; then
+  python3 -m json.tool <<< "$next_json" >/dev/null
+fi
 lesson_file="$("$ROOT/bin/oh-hermes" secretary learn add --title "Smoke lesson" --body "Remember smoke-test preference" --source smoke --confidence high)"
 [[ -f "$lesson_file" ]]
 learn_list="$("$ROOT/bin/oh-hermes" secretary learn list)"
