@@ -216,21 +216,52 @@ god_mode_ensure_services() {
   start_workspace --background
 }
 
+god_mode_service_active() {
+  local service="$1"
+  have systemctl && systemctl --user is-active --quiet "$service" 2>/dev/null
+}
+
+god_mode_systemd_unreachable() {
+  local service="$1" output
+  have systemctl || return 1
+  output="$(systemctl --user is-active "$service" 2>&1 >/dev/null || true)"
+  [[ "$output" == *"Operation not permitted"* || "$output" == *"Failed to connect to user scope bus"* ]]
+}
+
+god_mode_http_health() {
+  local label="$1" service="$2" url="$3" health_timeout="${OH_HERMES_HEALTH_TIMEOUT:-20}"
+  shift 3
+  printf '%s=' "$label"
+  if curl -fsS --max-time "$health_timeout" "$@" "$url" >/dev/null 2>&1; then
+    printf 'ok\n'
+  elif [[ -n "$service" ]] && god_mode_service_active "$service"; then
+    printf 'running-unreachable\n'
+  elif [[ -n "$service" ]] && god_mode_systemd_unreachable "$service"; then
+    printf 'unknown-unreachable\n'
+  else
+    printf 'failed\n'
+  fi
+}
+
 god_mode_health() {
-  local health_timeout="${OH_HERMES_HEALTH_TIMEOUT:-20}"
   printf 'hermes_config='
   hermes config check >/dev/null && printf 'ok\n' || printf 'failed\n'
-  printf 'workspace='
-  curl -fsS --max-time "$health_timeout" http://127.0.0.1:3000/ >/dev/null && printf 'ok\n' || printf 'failed\n'
-  printf 'dashboard='
-  curl -fsS --max-time "$health_timeout" http://127.0.0.1:9119/ >/dev/null && printf 'ok\n' || printf 'failed\n'
-  printf 'memos='
-  curl -fsS --max-time "$health_timeout" http://127.0.0.1:18800/ >/dev/null && printf 'ok\n' || printf 'failed\n'
+  god_mode_http_health workspace oh-hermes-workspace.service http://127.0.0.1:3000/
+  god_mode_http_health dashboard oh-hermes-dashboard.service http://127.0.0.1:9119/
+  god_mode_http_health memos oh-hermes-memos.service http://127.0.0.1:18800/
   printf 'api='
-  local key
+  local health_timeout="${OH_HERMES_HEALTH_TIMEOUT:-20}" key
   key="$(awk -F= '/^API_SERVER_KEY=/ {print substr($0, index($0,"=")+1); exit}' "$(hermes config env-path)" 2>/dev/null || true)"
   if [[ -n "$key" ]]; then
-    curl -fsS --max-time "$health_timeout" -H "Authorization: Bearer $key" http://127.0.0.1:8642/health >/dev/null && printf 'ok\n' || printf 'failed\n'
+    if curl -fsS --max-time "$health_timeout" -H "Authorization: Bearer $key" http://127.0.0.1:8642/health >/dev/null 2>&1; then
+      printf 'ok\n'
+    elif god_mode_service_active oh-hermes-workspace.service || god_mode_service_active oh-hermes-dashboard.service; then
+      printf 'unknown-unreachable\n'
+    elif god_mode_systemd_unreachable oh-hermes-workspace.service || god_mode_systemd_unreachable oh-hermes-dashboard.service; then
+      printf 'unknown-unreachable\n'
+    else
+      printf 'failed\n'
+    fi
   else
     printf 'missing-key\n'
   fi
