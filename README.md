@@ -40,6 +40,7 @@ cd /home/arch/oh-hermes
 ```bash
 oh-hermes doctor
 oh-hermes agent status
+oh-hermes agent json
 oh-hermes agent report
 oh-hermes agent context-pack
 oh-hermes publish-check
@@ -84,6 +85,7 @@ oh-hermes ui --background
 `evolve-skill` wraps `hermes-agent-self-evolution`; default mode is validation-only. Use `--run` only when you want to spend model calls generating a reviewed proposal artifact.
 `god-mode` runs the unattended cycle: backups, service repair, durable service setup, diagnostics, self-review, skill evolution, safe auto-apply, redaction checks, and local commits.
 `agent status` is the quick command-center view for health, timers, services, tasks, git state, and latest reports.
+`agent json` emits the same core command-center signal as parseable JSON for dashboards, scripts, and worker pipelines.
 `agent context-pack` writes a redacted private summary for future sessions under `~/.oh-hermes/reports`.
 `secretary` manages your private personal-agent layer under `~/.oh-hermes/secretary`: inbox, tasks, worker actions, worker sessions, reusable lessons, decisions, work logs, daily briefings, daily worker action plans, learning reviews, maintenance sweeps, and state audits.
 `publish-check` is the release gate before pushing a redacted public repo.

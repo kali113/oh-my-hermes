@@ -64,6 +64,7 @@ oh-hermes secretary brief
 oh-hermes secretary --install-timer
 oh-hermes secretary status
 oh-hermes agent status
+oh-hermes agent json
 oh-hermes agent report
 oh-hermes agent context-pack
 oh-hermes publish-check

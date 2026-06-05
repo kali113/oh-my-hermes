@@ -175,6 +175,13 @@ brief_file="$("$ROOT/bin/oh-hermes" secretary brief)"
 grep -q "Active Lessons" "$brief_file"
 agent_status="$("$ROOT/bin/oh-hermes" agent status)"
 grep -q "oh-hermes Agent Status" <<< "$agent_status"
+agent_json="$("$ROOT/bin/oh-hermes" agent json)"
+grep -q '"health"' <<< "$agent_json"
+grep -q '"secretary"' <<< "$agent_json"
+grep -q '"latest_reports"' <<< "$agent_json"
+if command -v python3 >/dev/null 2>&1; then
+  python3 -m json.tool <<< "$agent_json" >/dev/null
+fi
 "$ROOT/bin/oh-hermes" agent report >/dev/null
 context_pack="$("$ROOT/bin/oh-hermes" agent context-pack)"
 grep -q "Active Lessons" "$context_pack"

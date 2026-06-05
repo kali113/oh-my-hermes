@@ -5,6 +5,83 @@ agent_latest_file() {
   find "$OH_STATE_DIR" -path "$pattern" -type f 2>/dev/null | sort | tail -n 1
 }
 
+agent_json_string() {
+  local value="${1:-}"
+  value="${value//\\/\\\\}"
+  value="${value//\"/\\\"}"
+  value="${value//$'\n'/\\n}"
+  value="${value//$'\r'/\\r}"
+  value="${value//$'\t'/\\t}"
+  printf '"%s"' "$value"
+}
+
+agent_json_kv_object() {
+  local line key value first=1
+  printf '{'
+  while IFS= read -r line; do
+    [[ "$line" == *=* ]] || continue
+    key="${line%%=*}"
+    value="${line#*=}"
+    [[ "$first" == "1" ]] || printf ','
+    printf '\n    '
+    agent_json_string "$key"
+    printf ': '
+    agent_json_string "$value"
+    first=0
+  done
+  [[ "$first" == "1" ]] || printf '\n  '
+  printf '}'
+}
+
+agent_latest_reports_json() {
+  local latest first=1
+  printf '['
+  for latest in \
+    "$(agent_latest_file '*/reports/god-mode-*.md')" \
+    "$(agent_latest_file '*/reports/auto-improve-*.md')" \
+    "$(agent_latest_file '*/reports/self-review-*.md')" \
+    "$(agent_latest_file '*/secretary/briefings/*.md')" \
+    "$(agent_latest_file '*/secretary/learning/reviews/*.md')" \
+    "$(agent_latest_file '*/secretary/sweeps/*.md')" \
+    "$(agent_latest_file '*/secretary/audits/*.md')" \
+    "$(agent_latest_file '*/secretary/reminders/*.md')"; do
+    [[ -n "$latest" ]] || continue
+    [[ "$first" == "1" ]] || printf ','
+    printf '\n    '
+    agent_json_string "$latest"
+    first=0
+  done
+  [[ "$first" == "1" ]] || printf '\n  '
+  printf ']'
+}
+
+agent_status_json() {
+  local generated health secretary revision dirty_count
+  generated="$(date -Is)"
+  health="$(god_mode_health 2>/dev/null || true)"
+  secretary="$(secretary_status 2>/dev/null || true)"
+  if [[ -d "$OH_ROOT/.git" ]]; then
+    revision="$(git -C "$OH_ROOT" rev-parse --short=12 HEAD 2>/dev/null || printf unknown)"
+    dirty_count="$(git -C "$OH_ROOT" status --short 2>/dev/null | wc -l | tr -d ' ')"
+  else
+    revision="not-a-git-repo"
+    dirty_count=0
+  fi
+  printf '{\n'
+  printf '  "generated": '
+  agent_json_string "$generated"
+  printf ',\n  "repo": {\n    "revision": '
+  agent_json_string "$revision"
+  printf ',\n    "dirty_files": %s\n  },\n' "${dirty_count:-0}"
+  printf '  "health": '
+  agent_json_kv_object <<< "$health"
+  printf ',\n  "secretary": '
+  agent_json_kv_object <<< "$secretary"
+  printf ',\n  "latest_reports": '
+  agent_latest_reports_json
+  printf '\n}\n'
+}
+
 agent_status() {
   printf '# oh-hermes Agent Status\n\n'
   printf -- '- Generated: `%s`\n\n' "$(date -Is)"
@@ -110,6 +187,7 @@ agent_cmd() {
   shift || true
   case "$sub" in
     status) agent_status "$@" ;;
+    json) agent_status_json "$@" ;;
     report) agent_report "$@" ;;
     context-pack) agent_context_pack "$@" ;;
     *) die "Unknown agent command: $sub" ;;
