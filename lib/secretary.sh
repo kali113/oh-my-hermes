@@ -11,7 +11,7 @@ secretary_slug() {
 secretary_init() {
   local dir
   dir="$(secretary_dir)"
-  run mkdir -p "$dir/inbox" "$dir/tasks" "$dir/briefings" "$dir/worklog" "$dir/decisions" "$dir/reminders" "$dir/integrations" "$dir/agenda/sources" "$dir/agenda/events" "$dir/agenda/feeds" "$dir/routines" "$dir/routine-runs" "$dir/actions" "$dir/sessions" "$dir/learning" "$dir/learning/reviews" "$dir/sweeps"
+  run mkdir -p "$dir/inbox" "$dir/tasks" "$dir/briefings" "$dir/worklog" "$dir/decisions" "$dir/reminders" "$dir/integrations" "$dir/agenda/sources" "$dir/agenda/events" "$dir/agenda/feeds" "$dir/routines" "$dir/routine-runs" "$dir/actions" "$dir/sessions" "$dir/learning" "$dir/learning/reviews" "$dir/sweeps" "$dir/audits"
   if [[ ! -f "$dir/preferences.md" ]]; then
     run cp "$OH_ROOT/templates/secretary/preferences.md" "$dir/preferences.md"
   fi
@@ -723,6 +723,99 @@ secretary_sweep() {
     printf -- '- Promote or archive learning candidates after review.\n'
   } | write_private_report "$report"
   printf '%s\n' "$report"
+}
+
+secretary_audit() {
+  secretary_init >/dev/null
+  local strict=0 dir issues report count file id status risk approval confidence enabled schedule action_file action_status active_sessions
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --strict) strict=1; shift ;;
+      *) die "Unknown audit option: $1" ;;
+    esac
+  done
+  dir="$(secretary_dir)"
+  issues="$(mktemp)"
+  report="$dir/audits/$(ts)-state-audit.md"
+
+  [[ -f "$dir/preferences.md" ]] || printf -- '- missing preferences.md\n' >> "$issues"
+  [[ -f "$dir/rules.md" ]] || printf -- '- missing rules.md\n' >> "$issues"
+
+  while IFS= read -r file; do
+    status="$(secretary_task_status "$file")"
+    case "$status" in open|done) ;; *) printf -- '- invalid task status `%s` in `%s`\n' "$status" "$(basename "$file")" >> "$issues" ;; esac
+  done < <(find "$dir/tasks" -type f -name '*.md' 2>/dev/null | sort)
+
+  while IFS= read -r file; do
+    id="$(basename "$file" .md)"
+    status="$(secretary_action_field "$file" "Status")"
+    risk="$(secretary_action_field "$file" "Risk")"
+    approval="$(secretary_action_field "$file" "Requires Approval")"
+    case "${status:-proposed}" in proposed|approved|in_progress|done|rejected) ;; *) printf -- '- invalid action status `%s` in `%s`\n' "${status:-}" "$id" >> "$issues" ;; esac
+    case "${risk:-medium}" in low|medium|high) ;; *) printf -- '- invalid action risk `%s` in `%s`\n' "${risk:-}" "$id" >> "$issues" ;; esac
+    case "${approval:-1}" in 0|1) ;; *) printf -- '- invalid action approval flag `%s` in `%s`\n' "${approval:-}" "$id" >> "$issues" ;; esac
+    if [[ "${status:-proposed}" == "in_progress" ]]; then
+      active_sessions="$(find "$dir/sessions" -type f -name '*.md' 2>/dev/null | while IFS= read -r session; do
+        [[ "$(secretary_session_field "$session" "Action")" == "$id" ]] || continue
+        [[ "$(secretary_session_field "$session" "Status")" == "active" ]] || continue
+        printf '.'
+      done | wc -c | tr -d ' ')"
+      [[ "$active_sessions" -gt 0 ]] || printf -- '- in-progress action `%s` has no active session\n' "$id" >> "$issues"
+    fi
+  done < <(find "$dir/actions" -type f -name '*.md' 2>/dev/null | sort)
+
+  while IFS= read -r file; do
+    id="$(basename "$file" .md)"
+    status="$(secretary_session_field "$file" "Status")"
+    action_file="$dir/actions/$(secretary_session_field "$file" "Action").md"
+    case "${status:-active}" in active|closed) ;; *) printf -- '- invalid session status `%s` in `%s`\n' "${status:-}" "$id" >> "$issues" ;; esac
+    if [[ ! -f "$action_file" ]]; then
+      printf -- '- session `%s` references missing action `%s`\n' "$id" "$(secretary_session_field "$file" "Action")" >> "$issues"
+      continue
+    fi
+    action_status="$(secretary_action_field "$action_file" "Status")"
+    if [[ "${status:-active}" == "active" && "${action_status:-proposed}" != "in_progress" ]]; then
+      printf -- '- active session `%s` points to action `%s` with status `%s`\n' "$id" "$(basename "$action_file" .md)" "${action_status:-proposed}" >> "$issues"
+    fi
+  done < <(find "$dir/sessions" -type f -name '*.md' 2>/dev/null | sort)
+
+  while IFS= read -r file; do
+    id="$(basename "$file" .md)"
+    status="$(secretary_learn_field "$file" "Status")"
+    confidence="$(secretary_learn_field "$file" "Confidence")"
+    case "${status:-active}" in candidate|active|archived) ;; *) printf -- '- invalid lesson status `%s` in `%s`\n' "${status:-}" "$id" >> "$issues" ;; esac
+    case "${confidence:-medium}" in low|medium|high) ;; *) printf -- '- invalid lesson confidence `%s` in `%s`\n' "${confidence:-}" "$id" >> "$issues" ;; esac
+  done < <(find "$dir/learning" -maxdepth 1 -type f -name '*.md' 2>/dev/null | sort)
+
+  while IFS= read -r file; do
+    id="$(basename "$file" .md)"
+    enabled="$(secretary_task_field "$file" "Enabled")"
+    schedule="$(secretary_task_field "$file" "Schedule")"
+    case "${enabled:-1}" in 0|1) ;; *) printf -- '- invalid routine enabled flag `%s` in `%s`\n' "${enabled:-}" "$id" >> "$issues" ;; esac
+    case "${schedule:-manual}" in daily|weekly|manual) ;; *) printf -- '- invalid routine schedule `%s` in `%s`\n' "${schedule:-}" "$id" >> "$issues" ;; esac
+  done < <(find "$dir/routines" -type f -name '*.md' 2>/dev/null | sort)
+
+  count="$(wc -l < "$issues" | tr -d ' ')"
+  {
+    printf '# Secretary State Audit\n\n'
+    printf -- '- Generated: `%s`\n' "$(date -Is)"
+    printf -- '- Issues: `%s`\n\n' "$count"
+    printf '## Issues\n\n'
+    if [[ "$count" -gt 0 ]]; then
+      cat "$issues"
+    else
+      printf 'No consistency issues found.\n'
+    fi
+    printf '\n## Checked\n\n'
+    printf -- '- tasks: `%s`\n' "$(find "$dir/tasks" -type f -name '*.md' 2>/dev/null | wc -l)"
+    printf -- '- actions: `%s`\n' "$(find "$dir/actions" -type f -name '*.md' 2>/dev/null | wc -l)"
+    printf -- '- sessions: `%s`\n' "$(find "$dir/sessions" -type f -name '*.md' 2>/dev/null | wc -l)"
+    printf -- '- lessons: `%s`\n' "$(find "$dir/learning" -maxdepth 1 -type f -name '*.md' 2>/dev/null | wc -l)"
+    printf -- '- routines: `%s`\n' "$(find "$dir/routines" -type f -name '*.md' 2>/dev/null | wc -l)"
+  } | write_private_report "$report"
+  rm -f "$issues"
+  printf '%s\n' "$report"
+  [[ "$strict" != "1" || "$count" == "0" ]]
 }
 
 secretary_task_field() {
@@ -1481,6 +1574,7 @@ secretary_status() {
   printf 'candidate_lessons=%s\n' "$(secretary_learn_list --status candidate 2>/dev/null | tail -n +3 | wc -l)"
   printf 'learning_reviews=%s\n' "$(find "$dir/learning/reviews" -type f -name '*.md' 2>/dev/null | wc -l)"
   printf 'sweeps=%s\n' "$(find "$dir/sweeps" -type f -name '*.md' 2>/dev/null | wc -l)"
+  printf 'audits=%s\n' "$(find "$dir/audits" -type f -name '*.md' 2>/dev/null | wc -l)"
   printf 'routines=%s\n' "$(find "$dir/routines" -type f -name '*.md' 2>/dev/null | wc -l)"
   printf 'routine_runs=%s\n' "$(find "$dir/routine-runs" -type f -name '*.md' 2>/dev/null | wc -l)"
   printf 'integrations=%s\n' "$(find "$dir/integrations" -type f -name '*.md' 2>/dev/null | wc -l)"

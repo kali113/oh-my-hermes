@@ -30,6 +30,7 @@ cd /home/arch/oh-hermes
 - Worker session files that turn approved actions into focused in-progress work contexts.
 - Usage-learning loop for reusable lessons from completed tasks and action outcomes.
 - Maintenance sweeps for stale tasks, stalled actions, active sessions, lessons, and integration gaps.
+- State audits for malformed tasks, actions, sessions, lessons, routines, and broken action-session links.
 - Default daily review routine with a scheduled routine runner.
 - Weekly `systemd --user` auto-improvement reports.
 - Redaction checks before publishing.
@@ -62,6 +63,7 @@ oh-hermes secretary learn list
 oh-hermes secretary learn review
 oh-hermes secretary learn promote <lesson-id-prefix>
 oh-hermes secretary sweep
+oh-hermes secretary audit
 oh-hermes secretary routine add --name "Morning review" --schedule daily
 oh-hermes secretary routine run daily
 oh-hermes secretary task list
@@ -83,7 +85,7 @@ oh-hermes ui --background
 `god-mode` runs the unattended cycle: backups, service repair, durable service setup, diagnostics, self-review, skill evolution, safe auto-apply, redaction checks, and local commits.
 `agent status` is the quick command-center view for health, timers, services, tasks, git state, and latest reports.
 `agent context-pack` writes a redacted private summary for future sessions under `~/.oh-hermes/reports`.
-`secretary` manages your private personal-agent layer under `~/.oh-hermes/secretary`: inbox, tasks, worker actions, worker sessions, reusable lessons, decisions, work logs, daily briefings, daily worker action plans, learning reviews, and maintenance sweeps.
+`secretary` manages your private personal-agent layer under `~/.oh-hermes/secretary`: inbox, tasks, worker actions, worker sessions, reusable lessons, decisions, work logs, daily briefings, daily worker action plans, learning reviews, maintenance sweeps, and state audits.
 `publish-check` is the release gate before pushing a redacted public repo.
 `publish-snapshot` creates a `git archive HEAD` tarball plus a manifest after the publish gate passes.
 See `docs/SELF_IMPROVEMENT.md` for the latest guarded evolution result.

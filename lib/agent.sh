@@ -40,6 +40,7 @@ agent_status() {
     "$(agent_latest_file '*/secretary/briefings/*.md')" \
     "$(agent_latest_file '*/secretary/learning/reviews/*.md')" \
     "$(agent_latest_file '*/secretary/sweeps/*.md')" \
+    "$(agent_latest_file '*/secretary/audits/*.md')" \
     "$(agent_latest_file '*/secretary/reminders/*.md')"; do
     [[ -n "$latest" ]] && printf -- '- `%s`\n' "$latest"
   done
@@ -81,6 +82,14 @@ agent_context_pack() {
       sed -n '1,220p' "$sweep"
     else
       printf 'No maintenance sweep has been generated yet.\n'
+    fi
+    printf '\n## Latest State Audit\n\n'
+    local audit
+    audit="$(agent_latest_file '*/secretary/audits/*.md')"
+    if [[ -n "$audit" ]]; then
+      sed -n '1,220p' "$audit"
+    else
+      printf 'No state audit has been generated yet.\n'
     fi
     printf '\n## Routines\n\n'
     secretary_routine_list 2>&1 || true

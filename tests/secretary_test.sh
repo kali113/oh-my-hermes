@@ -91,6 +91,25 @@ grep -q "Stale smoke task" "$sweep_file"
 grep -q "Stale smoke action" "$sweep_file"
 grep -q "Stale smoke session" "$sweep_file"
 grep -q "Candidate Lessons" "$sweep_file"
+audit_file="$("$ROOT/bin/oh-hermes" secretary audit)"
+[[ -f "$audit_file" ]]
+grep -q "No consistency issues found" "$audit_file"
+cat > "$STATE/secretary/sessions/orphan.md" <<'MD'
+# Worker Session: Orphan
+
+- Started: `2000-01-01T00:00:00Z`
+- Status: `active`
+- Action: `missing-action`
+
+## Work Notes
+MD
+strict_audit="$STATE/strict-audit.out"
+if "$ROOT/bin/oh-hermes" secretary audit --strict > "$strict_audit"; then
+  echo "strict audit unexpectedly passed" >&2
+  exit 1
+fi
+grep -q "references missing action" "$(tail -n 1 "$strict_audit")"
+rm -f "$STATE/secretary/sessions/orphan.md"
 action_plan="$("$ROOT/bin/oh-hermes" secretary action plan)"
 [[ -f "$action_plan" ]]
 lesson_file="$("$ROOT/bin/oh-hermes" secretary learn add --title "Smoke lesson" --body "Remember smoke-test preference" --source smoke --confidence high)"
@@ -160,4 +179,5 @@ grep -q "oh-hermes Agent Status" <<< "$agent_status"
 context_pack="$("$ROOT/bin/oh-hermes" agent context-pack)"
 grep -q "Active Lessons" "$context_pack"
 grep -q "Latest Maintenance Sweep" "$context_pack"
+grep -q "Latest State Audit" "$context_pack"
 grep -q "publish-check" "$ROOT/bin/oh-hermes"
