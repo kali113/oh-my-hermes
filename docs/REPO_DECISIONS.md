@@ -21,7 +21,8 @@ Optional UI modules:
 
 - `hermes-web-ui`: not vendored; Business Source License.
 - `clawpanel`: not vendored; AGPL-3.0 and OpenClaw-centered.
-- `aionui`, `hermes-desktop`, `cc-switch`: useful for some workflows, not default.
+- `aionui`, `cc-switch`: useful for some workflows, not default.
+- `hermes-desktop`: use the official Hermes Desktop command (`hermes desktop`) instead of cloning the older third-party desktop source by default. The legacy `fathah/hermes-desktop` source remains available only through `OH_HERMES_DESKTOP_LEGACY_SOURCE=1`.
 
 Reference-only sources:
 

@@ -36,7 +36,7 @@ module_source_url() {
     workspace) printf 'https://github.com/outsourc-e/hermes-workspace\n' ;;
     memos) printf 'https://github.com/MemTensor/MemOS\n' ;;
     self-evolution) printf 'https://github.com/NousResearch/hermes-agent-self-evolution\n' ;;
-    hermes-desktop) printf 'https://github.com/fathah/hermes-desktop\n' ;;
+    hermes-desktop) printf 'https://hermes-agent.nousresearch.com/docs/user-guide/desktop\n' ;;
     hermes-web-ui) printf 'https://github.com/EKKOLearnAI/hermes-web-ui\n' ;;
     aionui) printf 'https://github.com/iOfficeAI/AionUi\n' ;;
     cc-switch) printf 'https://github.com/farion1231/cc-switch\n' ;;
@@ -60,7 +60,7 @@ module_role() {
     workspace) printf 'visual cockpit\n' ;;
     memos) printf 'local memory viewer\n' ;;
     self-evolution) printf 'guarded skill evolution lab\n' ;;
-    hermes-desktop) printf 'desktop shell source\n' ;;
+    hermes-desktop) printf 'official desktop app command\n' ;;
     hermes-web-ui) printf 'alternate web UI source\n' ;;
     aionui) printf 'alternate agent UI release\n' ;;
     cc-switch) printf 'Claude Code profile switcher source\n' ;;

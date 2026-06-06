@@ -21,6 +21,7 @@ cd /home/arch/oh-hermes
 - OpenAI-compatible provider setup helper.
 - Local Hermes API server key generation and Workspace token wiring.
 - Hermes Workspace as the default visual cockpit.
+- Official Hermes Desktop launcher/status integration through `hermes desktop`.
 - GBrain as the default durable brain layer.
 - AnySearch as the default current-search skill.
 - Optional MemOS and Hermes self-evolution lab modules.
