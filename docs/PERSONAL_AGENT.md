@@ -67,6 +67,16 @@ oh-hermes secretary next
 oh-hermes secretary next --json
 oh-hermes secretary --install-timer
 oh-hermes secretary status
+oh-hermes command-center
+oh-hermes command-center --json
+oh-hermes linux doctor --json
+oh-hermes desktop doctor --json
+oh-hermes memory status --json
+oh-hermes memory digest
+oh-hermes memory promote-candidates --dry-run
+oh-hermes autonomy status --json
+oh-hermes autonomy plan
+oh-hermes autonomy run --dry-run
 oh-hermes agent status
 oh-hermes agent json
 oh-hermes agent overview
@@ -74,12 +84,23 @@ oh-hermes agent overview --json
 oh-hermes agent report
 oh-hermes agent context-pack
 oh-hermes publish-check
+oh-hermes publish-ready --json
 oh-hermes publish-snapshot --out-dir /tmp/oh-hermes-publish
 ```
 
-`agent json` is the machine-readable personal-agent status surface. Health values use `ok` for verified HTTP success, `running-unreachable` when the backing user service is active but the HTTP probe cannot reach it, and `unknown-unreachable` when the current execution environment blocks local probing.
+`command-center --json` is the machine-readable personal-agent control center. It includes the selected next item, Linux compatibility, official Hermes Desktop status, memory status, autonomy status, publish readiness, and recommendations.
 
-`agent overview --json` is the one-call control-plane payload for autonomous workers. It includes status, modules, the selected next item, and the current focus queue.
+`agent json` is the smaller machine-readable personal-agent status surface. Health values use `ok` for verified HTTP success, `running-unreachable` when the backing user service is active but the HTTP probe cannot reach it, and `unknown-unreachable` when the current execution environment blocks local probing.
+
+`agent overview --json` is the one-call control-plane payload for autonomous workers. It includes status, modules, Linux compatibility, official Desktop status, memory, autonomy, publish readiness, the selected next item, and the current focus queue.
+
+`linux doctor --json` is the Linux portability gate. On Arch it checks the expected local stack directly; on other distros it reports best-effort dependency, session, systemd, notification, browser, Electron, and AppImage compatibility signals.
+
+`desktop doctor --json` verifies the first-party `hermes desktop` command and Linux runtime assumptions. `oh-hermes` does not use the dropped third-party desktop source unless `OH_HERMES_DESKTOP_LEGACY_SOURCE=1` is explicitly set.
+
+`memory digest` creates a private digest under `~/.oh-hermes/secretary/briefings`. `memory promote-candidates --dry-run` prints review commands instead of bulk-promoting unreviewed lessons.
+
+`autonomy run --dry-run` inspects the full command center, runs local tests, and records a private report without applying tracked-file edits or performing external actions.
 
 `secretary --install-timer` installs the daily briefing, focus queue, worker action plan, learning review, maintenance sweep, and state audit timer, half-hourly reminder check, hourly read-only agenda feed sync, and daily routine runner.
 `secretary init` seeds a default daily review routine if none exists.

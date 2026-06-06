@@ -94,10 +94,22 @@ agent_overview_json() {
   agent_status_json
   printf ',\n  "modules": '
   module_status_json
+  printf ',\n  "linux": '
+  linux_status_json
+  printf ',\n  "desktop": '
+  desktop_status_json
+  printf ',\n  "memory": '
+  memory_status_json
+  printf ',\n  "autonomy": '
+  autonomy_status_json
+  printf ',\n  "publish": '
+  OH_HERMES_PUBLISH_READY_FAST=1 publish_ready_json
   printf ',\n  "secretary_next": '
   secretary_next_json
   printf ',\n  "secretary_focus": '
   secretary_focus_json
+  printf ',\n  "recommendations": '
+  command_center_recommendations_json
   printf '}\n'
 }
 
@@ -112,7 +124,15 @@ agent_overview() {
   agent_status
   printf '\n## Modules\n\n```text\n'
   module_status_all
-  printf '\n```\n\n## Next Item\n\n'
+  printf '\n```\n\n## Linux\n\n```text\n'
+  linux_status_human
+  printf '\n```\n\n## Desktop\n\n'
+  desktop_status
+  printf '\n\n## Memory\n\n'
+  memory_status
+  printf '\n\n## Autonomy\n\n'
+  autonomy_status
+  printf '\n\n## Next Item\n\n'
   secretary_next
   printf '\n\n## Focus Queue JSON\n\n```json\n'
   secretary_focus_json

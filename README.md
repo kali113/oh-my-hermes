@@ -22,6 +22,8 @@ cd /home/arch/oh-hermes
 - Local Hermes API server key generation and Workspace token wiring.
 - Hermes Workspace as the default visual cockpit.
 - Official Hermes Desktop launcher/status integration through `hermes desktop`.
+- Linux compatibility doctor for Arch-first use plus best-effort Debian, Fedora, openSUSE, NixOS, Alpine, WSL, Wayland, X11, and headless detection.
+- Command-center JSON that aggregates health, modules, Desktop, Linux compatibility, secretary focus, memory, autonomy, and publish readiness.
 - GBrain as the default durable brain layer.
 - AnySearch as the default current-search skill.
 - Optional MemOS and Hermes self-evolution lab modules.
@@ -40,6 +42,24 @@ cd /home/arch/oh-hermes
 
 ```bash
 oh-hermes doctor
+oh-hermes command-center
+oh-hermes command-center --json
+oh-hermes linux doctor
+oh-hermes linux doctor --json
+oh-hermes linux deps
+oh-hermes linux service-check --json
+oh-hermes desktop status
+oh-hermes desktop status --json
+oh-hermes desktop doctor
+oh-hermes desktop launch
+oh-hermes desktop build
+oh-hermes memory status --json
+oh-hermes memory digest
+oh-hermes memory candidates
+oh-hermes memory promote-candidates --dry-run
+oh-hermes autonomy status --json
+oh-hermes autonomy plan
+oh-hermes autonomy run --dry-run
 oh-hermes agent status
 oh-hermes agent json
 oh-hermes agent overview
@@ -48,6 +68,7 @@ oh-hermes modules json
 oh-hermes agent report
 oh-hermes agent context-pack
 oh-hermes publish-check
+oh-hermes publish-ready --json
 oh-hermes publish-snapshot --out-dir /tmp/oh-hermes-publish
 oh-hermes auto-improve
 oh-hermes self-review
@@ -92,9 +113,15 @@ oh-hermes ui --background
 `self-review` asks Hermes to critique this setup and stores the answer under `~/.oh-hermes/reports`.
 `evolve-skill` wraps `hermes-agent-self-evolution`; default mode is validation-only. Use `--run` only when you want to spend model calls generating a reviewed proposal artifact.
 `god-mode` runs the unattended cycle: backups, service repair, durable service setup, diagnostics, self-review, skill evolution, safe auto-apply, redaction checks, and local commits.
+`command-center --json` is the widest machine-readable control-plane view: next item, Linux compatibility, Desktop status, memory, autonomy, publish readiness, and recommendations.
+`linux doctor --json` is the Linux portability gate. It detects distro, package manager, session type, desktop environment, user systemd reachability, command dependencies, AppImage/FUSE risk, notifications, browser helpers, and runtime recommendations.
+`desktop` wraps first-party Hermes Desktop through `hermes desktop`; third-party desktop sources remain opt-in only.
+`memory` summarizes durable learning state and keeps bulk lesson promotion review-first.
+`autonomy` exposes guarded dry-run automation plans. Use `god-mode` for the full existing unattended cycle.
+`publish-ready --json` reports release gate signals during active development; `publish-check` remains the strict clean-tree publish gate.
 `agent status` is the quick command-center view for health, timers, services, tasks, git state, and latest reports.
 `agent json` emits the same core command-center signal as parseable JSON for dashboards, scripts, and worker pipelines.
-`agent overview --json` aggregates agent status, module inventory, secretary next item, and focus queue in one control-plane payload.
+`agent overview --json` aggregates agent status, module inventory, Linux compatibility, Desktop status, memory, autonomy, publish readiness, secretary next item, and focus queue in one control-plane payload.
 `modules json` emits module tier, role, upstream source, and current install status for dashboards and setup audits.
 Health values use `ok` for verified HTTP success, `running-unreachable` when the backing user service is active but HTTP cannot be reached, and `unknown-unreachable` when local probing is blocked by the execution environment.
 `agent context-pack` writes a redacted private summary for future sessions under `~/.oh-hermes/reports`.

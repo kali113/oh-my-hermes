@@ -21,10 +21,20 @@ source "$OH_ROOT/lib/modules.sh"
 source "$OH_ROOT/lib/auto_improve.sh"
 # shellcheck source=../lib/secretary.sh
 source "$OH_ROOT/lib/secretary.sh"
-# shellcheck source=../lib/agent.sh
-source "$OH_ROOT/lib/agent.sh"
+# shellcheck source=../lib/linux_compat.sh
+source "$OH_ROOT/lib/linux_compat.sh"
+# shellcheck source=../lib/desktop.sh
+source "$OH_ROOT/lib/desktop.sh"
+# shellcheck source=../lib/memory.sh
+source "$OH_ROOT/lib/memory.sh"
+# shellcheck source=../lib/autonomy.sh
+source "$OH_ROOT/lib/autonomy.sh"
 # shellcheck source=../lib/publish.sh
 source "$OH_ROOT/lib/publish.sh"
+# shellcheck source=../lib/agent.sh
+source "$OH_ROOT/lib/agent.sh"
+# shellcheck source=../lib/command_center.sh
+source "$OH_ROOT/lib/command_center.sh"
 
 usage() {
   cat <<'EOF'
@@ -39,12 +49,18 @@ Usage:
   oh-hermes provider
   oh-hermes ui [--background|--install-service|--remove-service|--status]
   oh-hermes modules list|status|json|enable <name>
+  oh-hermes linux status|doctor|deps|service-check [--json]
+  oh-hermes desktop status|launch|build|doctor [--json] [--cwd DIR]
   oh-hermes auto-improve [--dry-run|--install-timer|--remove-timer]
   oh-hermes self-review
   oh-hermes evolve-skill <skill-name> [--dry-run|--run] [--iterations N]
   oh-hermes god-mode [--once|--install-timer|--remove-timer|--status]
+  oh-hermes command-center [--json]
+  oh-hermes memory status|digest|candidates|promote-candidates [--json|--dry-run]
+  oh-hermes autonomy status|plan|run [--json|--dry-run]
   oh-hermes agent status|json|overview [--json]|report|context-pack
   oh-hermes secretary init|brief|focus [--json]|next [--json]|capture|inbox|task|decision|action|session|learn|sweep|audit|routine|agenda|reminders|notify|integrations|worklog|status|--install-timer|--remove-timer
+  oh-hermes publish-ready [--json]
   oh-hermes publish-check
   oh-hermes publish-snapshot [--out-dir DIR] [--skip-check]
   oh-hermes redact-check [path]
@@ -217,12 +233,18 @@ main() {
       start_workspace "$@"
       ;;
     modules) cmd_modules "$@" ;;
+    linux) linux_cmd "$@" ;;
+    desktop) desktop_cmd "$@" ;;
     auto-improve) cmd_auto_improve "$@" ;;
     self-review) self_review "$@" ;;
     evolve-skill) evolve_skill "$@" ;;
     god-mode) god_mode "$@" ;;
+    command-center) command_center "$@" ;;
+    memory) memory_cmd "$@" ;;
+    autonomy) autonomy_cmd "$@" ;;
     agent) agent_cmd "$@" ;;
     secretary) cmd_secretary "$@" ;;
+    publish-ready) publish_ready "$@" ;;
     publish-check) publish_check "$@" ;;
     publish-snapshot) publish_snapshot "$@" ;;
     redact-check) redact_check "${1:-$OH_ROOT}" ;;
