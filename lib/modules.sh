@@ -26,7 +26,7 @@ module_status_one() {
 }
 
 module_list() {
-  printf '%s\n' anysearch gbrain workspace memos self-evolution hermes-desktop hermes-web-ui aionui cc-switch clawpanel
+  printf '%s\n' anysearch gbrain workspace memos self-evolution hermes-desktop hermes-web-ui aionui cc-switch clawpanel cortex
 }
 
 module_source_url() {
@@ -41,6 +41,7 @@ module_source_url() {
     aionui) printf 'https://github.com/iOfficeAI/AionUi\n' ;;
     cc-switch) printf 'https://github.com/farion1231/cc-switch\n' ;;
     clawpanel) printf 'https://github.com/qingchencloud/clawpanel\n' ;;
+    cortex) printf 'https://github.com/Mateooo93/cortex-cli\n' ;;
     *) printf 'unknown\n' ;;
   esac
 }
@@ -49,6 +50,7 @@ module_tier() {
   case "$1" in
     anysearch|gbrain|workspace|self-evolution) printf 'default\n' ;;
     memos) printf 'recommended\n' ;;
+    cortex) printf 'worker\n' ;;
     *) printf 'optional\n' ;;
   esac
 }
@@ -65,6 +67,7 @@ module_role() {
     aionui) printf 'alternate agent UI release\n' ;;
     cc-switch) printf 'Claude Code profile switcher source\n' ;;
     clawpanel) printf 'OpenClaw panel source\n' ;;
+    cortex) printf 'optional Cortex worker adapter\n' ;;
     *) printf 'unknown\n' ;;
   esac
 }
