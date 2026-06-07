@@ -38,6 +38,11 @@
       "name": "oh-worker",
       "path": "oh-worker/SKILL.md",
       "description": "Personal worker workflow for executing scoped jobs, logging progress, and producing verified deliverables."
+    },
+    {
+      "name": "oh-cortex-worker",
+      "path": "oh-cortex-worker/SKILL.md",
+      "description": "Delegate planning, research, and review work to Cortex headless prompts via the oh-hermes worker layer."
     }
   ]
 }

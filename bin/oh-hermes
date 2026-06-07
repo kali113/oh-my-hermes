@@ -35,6 +35,16 @@ source "$OH_ROOT/lib/publish.sh"
 source "$OH_ROOT/lib/agent.sh"
 # shellcheck source=../lib/command_center.sh
 source "$OH_ROOT/lib/command_center.sh"
+# shellcheck source=../lib/worker.sh
+source "$OH_ROOT/lib/worker.sh"
+# shellcheck source=../lib/kanban.sh
+source "$OH_ROOT/lib/kanban.sh"
+# shellcheck source=../lib/github.sh
+source "$OH_ROOT/lib/github.sh"
+# shellcheck source=../lib/codebase.sh
+source "$OH_ROOT/lib/codebase.sh"
+# shellcheck source=../modules/cortex.sh
+source "$OH_ROOT/modules/cortex.sh"
 
 usage() {
   cat <<'EOF'
@@ -65,6 +75,17 @@ Usage:
   oh-hermes publish-snapshot [--out-dir DIR] [--skip-check]
   oh-hermes redact-check [path]
   oh-hermes test
+  oh-hermes worker status|list [--json]
+  oh-hermes worker delegate --to WORKER --mode MODE [--card CARD_ID] [--dry-run]
+  oh-hermes worker run --session SESSION_ID [--dry-run]
+  oh-hermes cortex status|install-check [--json]
+  oh-hermes cortex plan|research|review --card CARD_ID [--dry-run]
+  oh-hermes kanban status|boards|cards|show|context [--json]
+  oh-hermes kanban sync-github [--dry-run]
+  oh-hermes github labels list|ensure [--dry-run]
+  oh-hermes github issues import|sync [--dry-run]
+  oh-hermes codebase scan [--json]
+  oh-hermes codebase intake [--dry-run|--apply]
 EOF
 }
 
@@ -249,6 +270,11 @@ main() {
     publish-snapshot) publish_snapshot "$@" ;;
     redact-check) redact_check "${1:-$OH_ROOT}" ;;
     test) cmd_test ;;
+    worker) worker_cmd "$@" ;;
+    cortex) cortex_cmd "$@" ;;
+    kanban) kanban_cmd "$@" ;;
+    github) github_cmd "$@" ;;
+    codebase) codebase_cmd "$@" ;;
     -h|--help|help|"") usage ;;
     *) die "Unknown command: $cmd" ;;
   esac
