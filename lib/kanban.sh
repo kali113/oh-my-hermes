@@ -118,13 +118,16 @@ kanban_cards_json() {
   local generated
   generated="$(date -Is)"
 
-  local args=(kanban list --json)
+  local args=(hermes kanban list --json)
   [[ -n "$board" ]] && args+=(--board "$board")
   [[ -n "$status_filter" ]] && args+=(--status "$status_filter")
 
   # hermes kanban list --json may not exist; fall back to plain list
-  local raw
-  raw="$("${args[@]}" 2>/dev/null || hermes kanban list ${board:+--board "$board"} 2>/dev/null || true)"
+  local raw fallback_args
+  fallback_args=(hermes kanban list)
+  [[ -n "$board" ]] && fallback_args+=(--board "$board")
+  [[ -n "$status_filter" ]] && fallback_args+=(--status "$status_filter")
+  raw="$("${args[@]}" 2>/dev/null || "${fallback_args[@]}" 2>/dev/null || true)"
 
   printf '{\n'
   printf '  "generated": '; oh_json_string "$generated"

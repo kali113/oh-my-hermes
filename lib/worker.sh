@@ -2,8 +2,8 @@
 
 # Worker registry, session model, and delegation for oh-hermes.
 # Workers are optional adapters. Cortex is the first supported worker,
-# registered through the generic interface so future workers (Codex,
-# local LLM, etc.) can be added without changing the core harness.
+# registered through the generic interface so future workers can be added
+# without changing the core harness.
 
 OH_WORKER_SESSIONS_DIR="$OH_STATE_DIR/worker-sessions"
 OH_WORKER_REGISTRY="$OH_STATE_DIR/worker-registry.json"
@@ -27,7 +27,7 @@ worker_registry_init() {
       "modes": ["plan", "research", "review"],
       "disabled_modes": ["implement"],
       "homepage": "https://github.com/Mateooo93/cortex-cli",
-      "install_guide": "pip install cortex-cli  # or follow repo README",
+      "install_guide": "Install the latest Linux binary from https://github.com/Mateooo93/cortex-cli/releases or build from source with Go.",
       "available": false,
       "version": null,
       "last_checked": null
@@ -56,39 +56,48 @@ worker_registry_read() {
 }
 
 worker_registry_list_names() {
-  python3 -c "
-import json, sys
-data = json.load(open('$OH_WORKER_REGISTRY'))
-for w in data.get('workers', []):
-    print(w['name'])
-" 2>/dev/null || true
+  python3 - "$OH_WORKER_REGISTRY" <<'PY' 2>/dev/null || true
+import json
+import sys
+
+data = json.load(open(sys.argv[1]))
+for worker in data.get("workers", []):
+    print(worker["name"])
+PY
 }
 
 worker_registry_get() {
   local name="$1"
-  python3 -c "
-import json, sys
-data = json.load(open('$OH_WORKER_REGISTRY'))
-for w in data.get('workers', []):
-    if w['name'] == '$name':
-        print(json.dumps(w))
+  python3 - "$OH_WORKER_REGISTRY" "$name" <<'PY' 2>/dev/null || printf 'null'
+import json
+import sys
+
+data = json.load(open(sys.argv[1]))
+target = sys.argv[2]
+for worker in data.get("workers", []):
+    if worker.get("name") == target:
+        print(json.dumps(worker))
         sys.exit(0)
 sys.exit(1)
-" 2>/dev/null || printf 'null'
+PY
 }
 
 worker_registry_set_field() {
   local name="$1" key="$2" value="$3"
   local tmp
   tmp="$(mktemp)"
-  python3 -c "
-import json, sys
-data = json.load(open('$OH_WORKER_REGISTRY'))
-for w in data.get('workers', []):
-    if w['name'] == '$name':
-        w['$key'] = $value
-json.dump(data, open('$tmp', 'w'), indent=2)
-" 2>/dev/null || true
+  python3 - "$OH_WORKER_REGISTRY" "$tmp" "$name" "$key" "$value" <<'PY' 2>/dev/null || true
+import json
+import sys
+
+registry_path, tmp_path, target, key, raw_value = sys.argv[1:6]
+data = json.load(open(registry_path))
+value = json.loads(raw_value)
+for worker in data.get("workers", []):
+    if worker.get("name") == target:
+        worker[key] = value
+json.dump(data, open(tmp_path, "w"), indent=2)
+PY
   if [[ -s "$tmp" ]]; then
     mv "$tmp" "$OH_WORKER_REGISTRY"
   else
@@ -105,10 +114,14 @@ worker_detect_cortex() {
     version="$(cortex --version 2>/dev/null | head -n 1 || printf 'unknown')"
   else
     available="false"
-    version="null"
+    version=""
   fi
   worker_registry_set_field cortex available "$available"
-  worker_registry_set_field cortex version "$(oh_json_string "$version")"
+  if [[ -n "$version" ]]; then
+    worker_registry_set_field cortex version "$(oh_json_string "$version")"
+  else
+    worker_registry_set_field cortex version "null"
+  fi
   worker_registry_set_field cortex last_checked "$(oh_json_string "$(date -Is)")"
 }
 
@@ -131,24 +144,29 @@ worker_session_create() {
   session_id="ws-${stamp}-${worker}-$$"
   local spath
   spath="$(worker_session_path "$session_id")"
-  cat > "$spath" <<EOF
-{
-  "session_id": "$session_id",
-  "worker": "$worker",
-  "mode": "$mode",
-  "card_id": "$card_id",
-  "status": "created",
-  "created": "$stamp",
-  "started": null,
-  "finished": null,
-  "exit_code": null,
-  "elapsed_seconds": null,
-  "worktree": null,
-  "result_summary": null,
-  "stdout_path": null,
-  "stderr_path": null
+  python3 - "$spath" "$session_id" "$worker" "$mode" "$card_id" "$stamp" <<'PY'
+import json
+import sys
+
+spath, session_id, worker, mode, card_id, stamp = sys.argv[1:7]
+payload = {
+    "session_id": session_id,
+    "worker": worker,
+    "mode": mode,
+    "card_id": card_id,
+    "status": "created",
+    "created": stamp,
+    "started": None,
+    "finished": None,
+    "exit_code": None,
+    "elapsed_seconds": None,
+    "worktree": None,
+    "result_summary": None,
+    "stdout_path": None,
+    "stderr_path": None,
 }
-EOF
+json.dump(payload, open(spath, "w"), indent=2)
+PY
   printf '%s' "$session_id"
 }
 
@@ -158,12 +176,15 @@ worker_session_update() {
   spath="$(worker_session_path "$session_id")"
   [[ -f "$spath" ]] || return 1
   tmp="$(mktemp)"
-  python3 -c "
-import json, sys
-data = json.load(open('$spath'))
-data['$key'] = $value
-json.dump(data, open('$tmp', 'w'), indent=2)
-" 2>/dev/null
+  python3 - "$spath" "$tmp" "$key" "$value" <<'PY' 2>/dev/null
+import json
+import sys
+
+spath, tmp, key, raw_value = sys.argv[1:5]
+data = json.load(open(spath))
+data[key] = json.loads(raw_value)
+json.dump(data, open(tmp, "w"), indent=2)
+PY
   if [[ -s "$tmp" ]]; then
     mv "$tmp" "$spath"
   else
@@ -228,34 +249,36 @@ worker_delegate() {
       reason_dry="dry_run"
     fi
 
-    cat <<EOF
-{
-  "delegated": false,
-  "reason": "$reason_dry",
-  "worker": "$worker",
-  "mode": "$mode",
-  "card_id": "$card_id",
-  "would_create_session": $([[ "$reason_dry" == "dry_run" ]] && printf 'true' || printf 'false')
-}
-EOF
+    printf '{\n'
+    printf '  "delegated": false'
+    printf ',\n  "reason": '; oh_json_string "$reason_dry"
+    printf ',\n  "worker": '; oh_json_string "$worker"
+    printf ',\n  "mode": '; oh_json_string "$mode"
+    printf ',\n  "card_id": '; oh_json_string "$card_id"
+    printf ',\n  "would_create_session": %s' "$([[ "$reason_dry" == "dry_run" ]] && printf 'true' || printf 'false')"
+    printf '\n}\n'
     return 0
   fi
 
   local wjson available
   wjson="$(worker_registry_get "$worker")"
+  if [[ "$wjson" == "null" ]]; then
+    printf '{\n  "delegated": false,\n  "reason": "worker_not_found",\n  "worker": '
+    oh_json_string "$worker"
+    printf '\n}\n'
+    return 1
+  fi
   available="$(python3 -c "import json,sys; d=json.loads(sys.argv[1]); print(str(d.get('available',False)).lower())" "$wjson" 2>/dev/null || printf 'false')"
 
   if [[ "$available" != "true" ]]; then
     local guide
     guide="$(python3 -c "import json,sys; d=json.loads(sys.argv[1]); print(d.get('install_guide','see docs'))" "$wjson" 2>/dev/null || printf 'see docs')"
-    cat <<EOF
-{
-  "delegated": false,
-  "reason": "worker_unavailable",
-  "worker": "$worker",
-  "install_guide": "$guide"
-}
-EOF
+    printf '{\n'
+    printf '  "delegated": false'
+    printf ',\n  "reason": "worker_unavailable"'
+    printf ',\n  "worker": '; oh_json_string "$worker"
+    printf ',\n  "install_guide": '; oh_json_string "$guide"
+    printf '\n}\n'
     return 1
   fi
 
@@ -263,14 +286,12 @@ EOF
   disabled="$(python3 -c "import json,sys; d=json.loads(sys.argv[1]); modes=d.get('disabled_modes',[]); print(str('$mode' in modes).lower())" "$wjson" 2>/dev/null || printf 'false')"
 
   if [[ "$disabled" == "true" ]]; then
-    cat <<EOF
-{
-  "delegated": false,
-  "reason": "mode_disabled",
-  "worker": "$worker",
-  "mode": "$mode"
-}
-EOF
+    printf '{\n'
+    printf '  "delegated": false'
+    printf ',\n  "reason": "mode_disabled"'
+    printf ',\n  "worker": '; oh_json_string "$worker"
+    printf ',\n  "mode": '; oh_json_string "$mode"
+    printf '\n}\n'
     return 1
   fi
 
@@ -303,14 +324,14 @@ data = json.load(open('$OH_WORKER_REGISTRY'))
 print(json.dumps(data.get('workers', []), indent=4))
 " 2>/dev/null || printf '[]'
   printf ',\n  "recent_sessions": '
-  local sessions first=1
+  local first=1
   printf '['
   while IFS= read -r sess; do
     [[ -n "$sess" ]] || continue
     [[ "$first" == "1" ]] || printf ','
     printf '\n    %s' "$sess"
     first=0
-  done < <(find "$OH_WORKER_SESSIONS_DIR" -name '*.json' -type f -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -n 10 | cut -d' ' -f2- | while read -r f; do cat "$f"; done)
+  done < <(worker_recent_session_files | while read -r f; do cat "$f"; done)
   [[ "$first" == "1" ]] || printf '\n  '
   printf ']\n'
   printf '}\n'
@@ -361,7 +382,28 @@ worker_run() {
     return 0
   fi
 
-  die "Live worker execution not yet implemented. Use --dry-run to inspect the session."
+  case "$worker" in
+    cortex)
+      local args=(--mode "$mode" --json)
+      [[ -n "$card_id" ]] && args+=(--card "$card_id")
+      cortex_workflow_run "${args[@]}"
+      ;;
+    *)
+      die "Live worker execution is not implemented for worker: $worker"
+      ;;
+  esac
+}
+
+worker_recent_session_files() {
+  find "$OH_WORKER_SESSIONS_DIR" -name '*.json' -type f -print0 2>/dev/null |
+    while IFS= read -r -d '' file; do
+      local mtime
+      mtime="$(stat -c '%Y' "$file" 2>/dev/null || stat -f '%m' "$file" 2>/dev/null || printf '0')"
+      printf '%s %s\n' "$mtime" "$file"
+    done |
+    sort -rn |
+    head -n 10 |
+    cut -d' ' -f2-
 }
 
 # --- command dispatch --------------------------------------------------

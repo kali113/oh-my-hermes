@@ -42,7 +42,7 @@
     {
       "name": "oh-cortex-worker",
       "path": "oh-cortex-worker/SKILL.md",
-      "description": "Delegate planning, research, and review work to the Cortex headless workflow runner via the oh-hermes worker layer."
+      "description": "Delegate planning, research, and review work to Cortex headless prompts via the oh-hermes worker layer."
     }
   ]
 }

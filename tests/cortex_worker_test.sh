@@ -31,13 +31,30 @@ assert_json() {
   fi
 }
 
-# Check that JSON contains a key (recursively in string form)
+# Check that JSON contains an exact key or scalar value recursively.
 assert_contains() {
-  local label="$1" json="$2" key="$3"
-  if printf '%s' "$json" | python3 -c "import json,sys; d=json.load(sys.stdin); s=json.dumps(d); assert '$key' in s" 2>/dev/null; then
+  local label="$1" json="$2" needle="$3"
+  if JSON_INPUT="$json" python3 - "$needle" <<'PY' 2>/dev/null
+import json
+import os
+import sys
+
+needle = sys.argv[1]
+data = json.loads(os.environ["JSON_INPUT"])
+
+def contains_exact(value):
+    if isinstance(value, dict):
+        return needle in value or any(contains_exact(v) for v in value.values())
+    if isinstance(value, list):
+        return any(contains_exact(v) for v in value)
+    return str(value) == needle
+
+assert contains_exact(data)
+PY
+  then
     check_pass "$label"
   else
-    check_fail "$label (missing '$key')"
+    check_fail "$label (missing '$needle')"
   fi
 }
 

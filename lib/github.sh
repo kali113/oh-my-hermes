@@ -64,10 +64,11 @@ github_labels_list_json() {
 }
 
 github_labels_ensure() {
-  local dry=0
+  local dry=1
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --dry-run) dry=1; shift ;;
+      --apply) dry=0; shift ;;
       *) shift ;;
     esac
   done
